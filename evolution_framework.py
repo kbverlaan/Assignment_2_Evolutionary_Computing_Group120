@@ -276,7 +276,7 @@ for i in range(n_runs):
         mean_generation_time = np.mean(generation_times)
 
 
-        print(f'Current generation time: {gen_time:f.1} seconds (Mean: {mean_generation_time:f.1})\n')
+        print(f'Current generation time: {gen_time:1f} seconds (Mean: {mean_generation_time:1f})\n')
 
 
 
