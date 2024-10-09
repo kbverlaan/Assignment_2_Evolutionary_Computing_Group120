@@ -1,9 +1,12 @@
 import random
 import numpy as np
 import time
+import string
+
 import sys
 from controller import player_controller
 from evoman.environment import Environment
+from scipy.spatial.distance import pdist, squareform
 
 #Initiliazes a random population
 def initialize_pop(pop_size, nr_weights, min_weight, max_weight):
@@ -34,6 +37,19 @@ def create_env(experiment_name, enemygroup, n_hidden):
     )
 
     return env
+
+def calculate_genotypic_diversity(island):
+    # Calculate pairwise distances between all individuals
+    if len(island) < 2:
+        return 0  # Not enough individuals to calculate diversity
+
+    # Flatten the island's genomes and calculate pairwise distances
+    pairwise_distances = pdist(island, metric='euclidean')
+    
+    # Calculate the mean pairwise distance
+    mean_distance = np.mean(pairwise_distances)
+
+    return mean_distance
 
 #evaluates each individual in pop by playing the game
 def evaluate(env, pop):
@@ -72,42 +88,47 @@ def parent_selection(pop, scores):
 #TODO
 #Takes two parents and creates one child
 def reproduce(parent1, parent2):
-    
-    #Create a child via a certain reproduction mechanism
+    # Generate a random mask with True/False values for crossover
+    mask = np.random.rand(len(parent1)) < 0.5
 
-    #random child for testing framework
-    child = np.random.uniform(min_weight, max_weight, inputs) 
+    # Create a child by picking genes from each parent based on the mask
+    child = np.where(mask, parent1, parent2)
 
-    #Return the child
     return child
 
-#Creates nr_children from a population
 def create_offspring(nr_children, pop, scores):
-    #create empty list of offspring
+    # Ensure scores are in numpy array format for calculation
+    scores = np.array(scores)
+    
+    # Convert scores to probabilities (higher fitness gives a higher chance of selection)
+    fitness_probabilities = scores / scores.sum()
+
+    # Create an empty list to store offspring
     offspring = []
     total_children = nr_children * len(pop)
-
-    #Produce nr_children children
-    for i in range(total_children):
-        parent1 = parent_selection(pop, scores) #select parent 1
-        parent2 = parent_selection(pop, scores) #select parent 2
-
-        #Recombine pairs of parents, generating offspring
+    
+    # Generate offspring based on fitness probabilities
+    for _ in range(total_children):
+        # Select two parents based on the fitness probabilities
+        parent1 = pop[np.random.choice(len(pop), p=fitness_probabilities)]
+        parent2 = pop[np.random.choice(len(pop), p=fitness_probabilities)]
+        
+        # Recombine parents to create a child
         child = reproduce(parent1, parent2)
         offspring.append(child)
     
-    #return the population of offspring
+    # Return the population of offspring
     return offspring
 
 #TODO
 #Takes a population and mutates it with a mutation rate
 def mutate(pop, mutate_rate):
-    
-    #mutate the population via a certain mechanism
-    new_pop = pop #for testing framework
-
-    #Return the mutated population
-    return new_pop
+    for individual in pop:
+        if np.random.rand() < mutate_rate:
+            # Apply small mutation to each weight in the individual
+            mutation = np.random.normal(0, 0.1, individual.shape)
+            individual += mutation
+    return pop
 
 #TODO
 #Takes a larger population a selects the best of pop_size from it
@@ -127,49 +148,96 @@ def select_individuals(pop, scores, pop_size):
     return new_pop, new_scores
 
 #Exchange individuals in between islands
-def exchange_individuals(islands, prob_exchange):
-
+def migration_event(islands, migration_pressure):
     for name, island in islands.items():
-        if island is not None and len(island) > 0 and np.random.rand() < prob_exchange:
+        # determine if migration happens using migration pressure
+        if island is not None and len(island) > 0 and np.random.rand() < migration_pressure:
 
             island = np.array(island)
 
-            # Select a random island to exchange with
-            # make a list of possible targets
-            possible_targets = [target_name for target_name, target_island in islands.items() 
-                                if target_name != name and target_island is not None and len(target_island) > 0]
+            # WHERE DO WE MIGRATE TO?
+            small_uninhabited_prob = 300  
+            possible_targets = {}
 
-            if not possible_targets:
-                continue  # Skip if no other active islands are available
+            for target_name, target_island in islands.items():
+                if target_name == name:
+                    continue  # Skip the current island
+                
+                if target_island is None or len(target_island) == 0:
+                    # Uninhabited island - assign a small fixed probability
+                    possible_targets[target_name] = small_uninhabited_prob
+                else:
+                    # Inhabited island - base weight on fitness
+                    if scores[target_name] is not None:
+                        fitness = np.mean(scores[target_name])
+                    else:
+                        fitness = small_uninhabited_prob  # If scores is None, use a default fitness of 0
+                    possible_targets[target_name] = fitness
 
-            #choose the target
-            target_name = np.random.choice(possible_targets)
+            # Create lists for target names and their weights
+            target_names = list(possible_targets.keys())
+            weights = np.array(list(possible_targets.values()), dtype=float)
 
-            # Exchange a random number of individuals with a right skewed dist
-            pop_size = len(island)
-            min_migration = max(1, int(pop_size * 0.1))
+            # Normalize weights to create probabilities
+            total_weight = weights.sum()
+            if total_weight > 0:
+                weights /= total_weight  # Ensure weights sum to 1
 
-            mean = pop_size * 0.1
-            sigma = 0.5  # Adjust this for skewness
+                # Choose the target based on weighted probabilities
+                target_name = np.random.choice(target_names, p=weights)
 
-            num_to_exchange = int(np.round(np.random.lognormal(mean, sigma)))
-            num_to_exchange = max(min_migration, min(num_to_exchange, pop_size))
+                # Check if the target is an undiscovered island
+                undiscovered = islands[target_name] is None or len(islands[target_name]) == 0
 
-            # Randomly select individuals to migrate
-            individuals_to_exchange = np.random.choice(pop_size, num_to_exchange, replace=False)
-            individuals = island[individuals_to_exchange]
+                # WHICH INDIVIDUALS MIGRATE?
+                # Exchange a random number of individuals with a right skewed dist
+                pop_size = len(island)
+                min_migration = max(5, int(pop_size * 0.1))
 
-            # Append the selected individuals to the target island
-            islands[target_name] = np.append(islands[target_name], individuals, axis=0)
+                mean = pop_size * 0.1
+                sigma = 0.2 # Adjust this for skewness
 
-            # Update the current island by removing migrated individuals
-            islands[name] = np.delete(island, individuals_to_exchange, axis=0)
-            
-            # Print output
-            if num_to_exchange > 1:
-                print(f'Migration event occured: {num_to_exchange} random individuals migrated from {name} to {target_name}.')
-            else:
-                print(f'Migration event occured: {num_to_exchange} random individual migrated from {name} to {target_name}.')
+                num_to_exchange = int(np.round(np.random.lognormal(mean, sigma)))
+                num_to_exchange = max(min_migration, min(num_to_exchange, pop_size))
+
+                num_to_exchange = min(num_to_exchange, pop_size)
+
+                # Randomly select individuals to migrate, ensuring it does not exceed the available population
+                if num_to_exchange > pop_size:
+                    num_to_exchange = pop_size
+
+                individuals_to_exchange = np.random.choice(pop_size, num_to_exchange, replace=False)
+                individuals = island[individuals_to_exchange]
+
+                # Handle appending to the target island
+                if islands[target_name] is None:
+                    islands[target_name] = individuals
+                else:
+                    if islands[target_name].ndim == 1:
+                        islands[target_name] = islands[target_name].reshape(1, -1)
+                    if individuals.ndim == 1:
+                        individuals = individuals.reshape(1, -1)
+
+                    islands[target_name] = np.concatenate((islands[target_name], individuals), axis=0)
+
+                # Remove migrated individuals from the source island
+                islands[name] = np.delete(island, individuals_to_exchange, axis=0)
+                if len(islands[name]) == 0:
+                    islands[name] = None  # Set to None if the island becomes empty
+
+
+                # Print output
+                if undiscovered:
+                    if num_to_exchange > 1:
+                        print(f'- Discovery event occured: {num_to_exchange} random individuals migrated from {name} to undiscovered {target_name}.')
+                    else:
+                        print(f'- Discovery event occured: {num_to_exchange} random individual migrated from {name} to undiscovered {target_name}.')
+                
+                else:
+                    if num_to_exchange > 1:
+                        print(f'- Migration event occured: {num_to_exchange} random individuals migrated from {name} to {target_name}.')
+                    else:
+                        print(f'- Migration event occured: {num_to_exchange} random individual migrated from {name} to {target_name}.')
 
 
 #evolves a population for a number of generations 
@@ -195,8 +263,8 @@ def evolve(pop, nr_children, scores, pop_size):
     return pop, scores
     
 n_runs = 1 #number of runs (should be 10 for report)
-generations = 50 #number of generations
-pop_size = 50 #population size
+generations = 250 #number of generations
+total_pop_size = 100 #population size
 
 n_hidden = 10 #number of hidden nodes in NN
 inputs = 265 #amount of weights
@@ -206,11 +274,18 @@ max_weight = 1 #maximum weight for the NN
 experiment_name = 'test'
 enemygroup = [5, 7] #which enemies to train on (if you want quick, do less)
 
-mutate_rate = 0.1 #amount of mutations
-nr_children = 3 #amount off offspring to generate
+mutate_rate = 0.4 #amount of mutations
+nr_children = 2 #amount off offspring to generate
 
-nr_islands = 4 #the number of islands
-prob_exchange = 0.05 #probability of exchanging between islands
+#island params
+nr_islands = 10 #the number of islands
+inhabited_islands = 4
+
+#migration parameters
+base_migration_prob = 0.05 #probability of exchanging between islands
+pop_weight = 2
+stag_weight = 5
+diversity_weight = 2
 
 generation_times = [] #record the generation times
 
@@ -221,35 +296,62 @@ for i in range(n_runs):
     env = create_env(experiment_name, enemygroup, n_hidden)
     
     #Initialize a random population
-    pop = initialize_pop(pop_size, inputs, min_weight, max_weight)
+    pop = initialize_pop(total_pop_size, inputs, min_weight, max_weight)
+    # split into the inhabited islands
+    split_populations = np.array_split(pop, inhabited_islands)
 
     #Evaluate each individual
     scores = evaluate(env, pop)
 
     #ISLAND METHOD EVOLUTION
     #Divide population into nr_islands equal parts
-    islands = {f"Island {i}": np.array_split(pop, nr_islands)[i] for i in range(nr_islands)}
-    scores = {name: evaluate(env, pop) for name, pop in islands.items()}
+    island_names = list(string.ascii_uppercase[:nr_islands]) # name islands alphabetically
+    
+    # Create an empty dictionary for all islands
+    islands = {f'Island {name}': None for name in island_names}
+
+    # Randomly select 4 islands to be inhabited
+    inhabited_island_names = random.sample(island_names, inhabited_islands)
+    
+    for i, island_name in enumerate(inhabited_island_names):
+        islands[f'Island {island_name}'] = split_populations[i]
+    
+    scores = {name: evaluate(env, pop) if pop is not None else None for name, pop in islands.items()}
+
+
+    # track max and mean fitnesses
+    max_fitnesses = {}
+    mean_fitnesses = {}
+    stagnation = {}
+    population_max = 0
+    population_stagnation = 0
+    migration_pressure = base_migration_prob
 
     ### EVOLUTION
     generation = 1
     
     for j in range(generations):
+        #track stats
         start = time.time()
-        print(f'---------- GENERATION {generation} ----------')
+        current_gen_max = None
+        prev_pop_max = population_max
 
-        # Possibly exchange individuals between islands
-        exchange_individuals(islands, prob_exchange)
+        print(f'--------------- GENERATION {generation} ---------------')
+        print(f'Best Overall Fitness: {population_max:.2f} ({population_stagnation})\n')
+
+
+        # Possibly migrate individuals between islands
+        migration_event(islands, migration_pressure)
 
         # Check for extinction events
         for name, island in islands.items():
             if island is not None and len(island) == 0:
                 # Remove the island and corresponding score
-                print(f'Extinction event occurred: the population on {name} has gone extinct.')
+                print(f'- Extinction event occurred: the population on {name} has migrated.')
                 islands[name] = None  
 
         # Output formatting
-        print("\n{:<10} {:<15} {:<15} {:<10}".format("", "Max Fitness", "Mean Fitness", "Pop Size"))
+        print("\n{:<10} {:<15} {:<15} {:<10} {:<10} {:<10}".format("", "Max Fitness", "Mean Fitness", "Pop Size", "MP", "GD"))
 
         # Evolve each island and check for extinction in reverse order
         for name, island in islands.items():
@@ -259,24 +361,84 @@ for i in range(n_runs):
                 scores[name] = evaluate(env, island)
                 islands[name], scores[name] = evolve(island, nr_children, scores[name], pop_size)
 
+                # calculate max and mean fitnesses
                 max_fitness = np.array(scores[name]).max()
                 mean_fitness = np.array(scores[name]).mean()
 
-                print("{:<10} {:<15.2f} {:<15.2f} {:<10}".format(name, max_fitness, mean_fitness, pop_size))
+                # save fitnesses and calculate stagnation
+                if name not in max_fitnesses:
+                    max_fitnesses[name] = [max_fitness]
+                    mean_fitnesses[name] = [mean_fitness]
+                    stagnation[name] = (0, 0)
+                else:
+                    max_fitnesses[name].append(max_fitness)
+                    mean_fitnesses[name].append(mean_fitness)
+                
+                    # Check for stagnation in max fitness
+                    max_stag, mean_stag = stagnation[name]
+                    if len(max_fitnesses[name]) > 1 and max_fitnesses[name][-2] >= max_fitnesses[name][-1]:
+                        max_stag += 1
+                    else:
+                        max_stag = 0  # Reset if there is no stagnation
+                    
+                    # Check for stagnation in mean fitness
+                    if len(mean_fitnesses[name]) > 1 and mean_fitnesses[name][-2] >= mean_fitnesses[name][-1]:
+                        mean_stag += 1
+                    else:
+                        mean_stag = 0  # Reset if there is no stagnation
+                    
+                    # Update the stagnation dictionary with the new stagnation values
+                    stagnation[name] = (max_stag, mean_stag)
+                
+                
+                diversity = calculate_genotypic_diversity(island)
+
+                max_stag, mean_stag = stagnation[name]
+
+                # Calculate the migration pressure
+                deviation = abs(pop_size - (pop_size/3))
+                pop_factor = deviation / total_pop_size
+                stag_factor = stag_factor = (max_stag + mean_stag * 2) / generations
+                diversity_factor = 1 - (diversity / 15)
+
+
+                migration_pressure = base_migration_prob * (pop_weight * pop_factor + stag_weight * stag_factor + diversity_weight * diversity_factor)
+                # Print statement with formatted max fitness and mean fitness including stagnation
+                print("{:<10} {:<15} {:<15} {:<10} {:<10.3f} {:<10.2f}".format(
+                    name, 
+                    f"{max_fitness:.2f} ({max_stag})", 
+                    f"{mean_fitness:.2f} ({mean_stag})", 
+                    pop_size,
+                    migration_pressure,
+                    diversity
+                ))
+                
+                # track the max of the population
+                if current_gen_max is None or max_fitness > current_gen_max:
+                    current_gen_max = max_fitness
+
             else:
                 # Skip extinct islands in stats
                 continue
 
         print()
-
+        
+        # Generation counter and time calculation
         generation += 1
         end = time.time()
         gen_time = end - start
         generation_times.append(gen_time)
         mean_generation_time = np.mean(generation_times)
 
+        # Max fitness and stagnation
+        # Check for stagnation in population-wide max fitness
+        if prev_pop_max is not None and current_gen_max == prev_pop_max:
+            population_stagnation += 1
+        else:
+            population_stagnation = 0
+            population_max = current_gen_max
 
-        print(f'Current generation time: {gen_time:1f} seconds (Mean: {mean_generation_time:1f})\n')
+        print(f'Current generation time: {gen_time:.2f} seconds (Mean: {mean_generation_time:.2f} seconds)\n')
 
 
 
