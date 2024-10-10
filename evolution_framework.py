@@ -148,15 +148,21 @@ def select_individuals(pop, scores, pop_size):
     return new_pop, new_scores
 
 #Exchange individuals in between islands
-def migration_event(islands, migration_pressure):
+def migration_event(islands, migration_pressures):
     for name, island in islands.items():
+        
+        if name not in migration_pressures:
+            continue
+        
+        migration_pressure = migration_pressures[name]
+
         # determine if migration happens using migration pressure
-        if island is not None and len(island) > 0 and np.random.rand() < migration_pressure:
+        if island is not None and len(island) > 0 and migration_pressure is not None and np.random.rand() < migration_pressure:
 
             island = np.array(island)
 
             # WHERE DO WE MIGRATE TO?
-            small_uninhabited_prob = 300  
+            small_uninhabited_prob = 100  
             possible_targets = {}
 
             for target_name, target_island in islands.items():
@@ -195,11 +201,10 @@ def migration_event(islands, migration_pressure):
                 min_migration = max(5, int(pop_size * 0.1))
 
                 mean = pop_size * 0.1
-                sigma = 0.2 # Adjust this for skewness
-
-                num_to_exchange = int(np.round(np.random.lognormal(mean, sigma)))
+                sigma = pop_size * 0.2 # Adjust this for skewness
+                
+                num_to_exchange = int(np.round(np.random.normal(mean, sigma)))
                 num_to_exchange = max(min_migration, min(num_to_exchange, pop_size))
-
                 num_to_exchange = min(num_to_exchange, pop_size)
 
                 # Randomly select individuals to migrate, ensuring it does not exceed the available population
@@ -228,16 +233,9 @@ def migration_event(islands, migration_pressure):
 
                 # Print output
                 if undiscovered:
-                    if num_to_exchange > 1:
-                        print(f'- Discovery event occured: {num_to_exchange} random individuals migrated from {name} to undiscovered {target_name}.')
-                    else:
-                        print(f'- Discovery event occured: {num_to_exchange} random individual migrated from {name} to undiscovered {target_name}.')
-                
+                    print(f'- Island Discovered: {num_to_exchange} individuals from {name} discovered {target_name}.')
                 else:
-                    if num_to_exchange > 1:
-                        print(f'- Migration event occured: {num_to_exchange} random individuals migrated from {name} to {target_name}.')
-                    else:
-                        print(f'- Migration event occured: {num_to_exchange} random individual migrated from {name} to {target_name}.')
+                    print(f'- Migration: {num_to_exchange} individuals migrated from {name} to {target_name}.')
 
 
 #evolves a population for a number of generations 
@@ -326,6 +324,7 @@ for i in range(n_runs):
     population_max = 0
     population_stagnation = 0
     migration_pressure = base_migration_prob
+    migration_pressures = {}
 
     ### EVOLUTION
     generation = 1
@@ -336,19 +335,10 @@ for i in range(n_runs):
         current_gen_max = None
         prev_pop_max = population_max
 
-        print(f'--------------- GENERATION {generation} ---------------')
-        print(f'Best Overall Fitness: {population_max:.2f} ({population_stagnation})\n')
-
+        print(f'--------------- GENERATION {generation} ---------------\n')
 
         # Possibly migrate individuals between islands
-        migration_event(islands, migration_pressure)
-
-        # Check for extinction events
-        for name, island in islands.items():
-            if island is not None and len(island) == 0:
-                # Remove the island and corresponding score
-                print(f'- Extinction event occurred: the population on {name} has migrated.')
-                islands[name] = None  
+        migration_event(islands, migration_pressures)
 
         # Output formatting
         print("\n{:<10} {:<15} {:<15} {:<10} {:<10} {:<10}".format("", "Max Fitness", "Mean Fitness", "Pop Size", "MP", "GD"))
@@ -401,15 +391,16 @@ for i in range(n_runs):
                 stag_factor = stag_factor = (max_stag + mean_stag * 2) / generations
                 diversity_factor = 1 - (diversity / 15)
 
+                migration_pressures[name] = base_migration_prob * (pop_weight * pop_factor + stag_weight * stag_factor + diversity_weight * diversity_factor)
 
-                migration_pressure = base_migration_prob * (pop_weight * pop_factor + stag_weight * stag_factor + diversity_weight * diversity_factor)
+                
                 # Print statement with formatted max fitness and mean fitness including stagnation
                 print("{:<10} {:<15} {:<15} {:<10} {:<10.3f} {:<10.2f}".format(
                     name, 
                     f"{max_fitness:.2f} ({max_stag})", 
                     f"{mean_fitness:.2f} ({mean_stag})", 
                     pop_size,
-                    migration_pressure,
+                    migration_pressures[name],
                     diversity
                 ))
                 
@@ -438,6 +429,7 @@ for i in range(n_runs):
             population_stagnation = 0
             population_max = current_gen_max
 
+        print(f'Best Overall Fitness: {population_max:.2f} ({population_stagnation})\n')
         print(f'Current generation time: {gen_time:.2f} seconds (Mean: {mean_generation_time:.2f} seconds)\n')
 
 
