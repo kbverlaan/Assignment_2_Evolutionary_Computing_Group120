@@ -242,7 +242,7 @@ def migration_event(islands, migration_pressures):
 
 
 #evolves a population for a number of generations 
-def evolve(pop, nr_children, scores, pop_size, tournament_size):
+def evolve(env, pop, nr_children, scores, pop_size, tournament_size, mutate_rate):
     
     #create children
     offspring = create_offspring(nr_children, pop, scores, tournament_size)
@@ -263,187 +263,188 @@ def evolve(pop, nr_children, scores, pop_size, tournament_size):
     #returns the evolved population and new scores
     return pop, scores
     
-n_runs = 1 #number of runs (should be 10 for report)
-generations = 250 #number of generations
-total_pop_size = 100 #population size
+if __name__ == "__main__":
+    n_runs = 1 #number of runs (should be 10 for report)
+    generations = 250 #number of generations
+    total_pop_size = 100 #population size
 
-n_hidden = 10 #number of hidden nodes in NN
-inputs = 265 #amount of weights
-min_weight = -1 #minimum weight for the NN
-max_weight = 1 #maximum weight for the NN
+    n_hidden = 10 #number of hidden nodes in NN
+    inputs = 265 #amount of weights
+    min_weight = -1 #minimum weight for the NN
+    max_weight = 1 #maximum weight for the NN
 
-experiment_name = 'test'
-enemygroup = [5, 7] #which enemies to train on (if you want quick, do less)
+    experiment_name = 'test'
+    enemygroup = [5, 7] #which enemies to train on (if you want quick, do less)
 
-mutate_rate = 0.4 #amount of mutations
-nr_children = 2 #amount off offspring to generate
-tournament_size = 3
+    mutate_rate = 0.4 #amount of mutations
+    nr_children = 2 #amount off offspring to generate
+    tournament_size = 3
 
-#island params
-nr_islands = 10 #the number of islands
-inhabited_islands = 4
+    #island params
+    nr_islands = 10 #the number of islands
+    inhabited_islands = 4
 
-#migration parameters
-base_migration_prob = 0.05 #probability of exchanging between islands
-pop_weight = 2
-stag_weight = 5
-diversity_weight = 2
+    #migration parameters
+    base_migration_prob = 0.05 #probability of exchanging between islands
+    pop_weight = 2
+    stag_weight = 5
+    diversity_weight = 2
 
-generation_times = [] #record the generation times
+    generation_times = [] #record the generation times
 
-#Running the experiment for the amount of runs with one group
-for i in range(n_runs):
-    ### INITIALIZATION
-    #create the environment to play the game
-    env = create_env(experiment_name, enemygroup, n_hidden)
-    
-    #Initialize a random population
-    pop = initialize_pop(total_pop_size, inputs, min_weight, max_weight)
-    # split into the inhabited islands
-    split_populations = np.array_split(pop, inhabited_islands)
+    #Running the experiment for the amount of runs with one group
+    for i in range(n_runs):
+        ### INITIALIZATION
+        #create the environment to play the game
+        env = create_env(experiment_name, enemygroup, n_hidden)
 
-    #Evaluate each individual
-    scores = evaluate(env, pop)
+        #Initialize a random population
+        pop = initialize_pop(total_pop_size, inputs, min_weight, max_weight)
+        # split into the inhabited islands
+        split_populations = np.array_split(pop, inhabited_islands)
 
-    #ISLAND METHOD EVOLUTION
-    #Divide population into nr_islands equal parts
-    island_names = list(string.ascii_uppercase[:nr_islands]) # name islands alphabetically
-    
-    # Create an empty dictionary for all islands
-    islands = {f'Island {name}': None for name in island_names}
+        #Evaluate each individual
+        scores = evaluate(env, pop)
 
-    # Randomly select 4 islands to be inhabited
-    inhabited_island_names = random.sample(island_names, inhabited_islands)
-    
-    for i, island_name in enumerate(inhabited_island_names):
-        islands[f'Island {island_name}'] = split_populations[i]
-    
-    scores = {name: evaluate(env, pop) if pop is not None else None for name, pop in islands.items()}
+        #ISLAND METHOD EVOLUTION
+        #Divide population into nr_islands equal parts
+        island_names = list(string.ascii_uppercase[:nr_islands]) # name islands alphabetically
+
+        # Create an empty dictionary for all islands
+        islands = {f'Island {name}': None for name in island_names}
+
+        # Randomly select 4 islands to be inhabited
+        inhabited_island_names = random.sample(island_names, inhabited_islands)
+
+        for i, island_name in enumerate(inhabited_island_names):
+            islands[f'Island {island_name}'] = split_populations[i]
+
+        scores = {name: evaluate(env, pop) if pop is not None else None for name, pop in islands.items()}
 
 
-    # track max and mean fitnesses
-    max_fitnesses = {}
-    mean_fitnesses = {}
-    stagnation = {}
-    population_max = 0
-    population_stagnation = 0
-    migration_pressure = base_migration_prob
-    migration_pressures = {}
+        # track max and mean fitnesses
+        max_fitnesses = {}
+        mean_fitnesses = {}
+        stagnation = {}
+        population_max = 0
+        population_stagnation = 0
+        migration_pressure = base_migration_prob
+        migration_pressures = {}
 
-    ### EVOLUTION
-    generation = 1
-    
-    for j in range(generations):
-        #track stats
-        start = time.time()
-        current_gen_max = None
-        prev_pop_max = population_max
+        ### EVOLUTION
+        generation = 1
 
-        print(f'--------------- GENERATION {generation} ---------------\n')
+        for j in range(generations):
+            #track stats
+            start = time.time()
+            current_gen_max = None
+            prev_pop_max = population_max
 
-        # Possibly migrate individuals between islands
-        migration_event(islands, migration_pressures)
+            print(f'--------------- GENERATION {generation} ---------------\n')
 
-        # Output formatting
-        print("\n{:<10} {:<15} {:<15} {:<10} {:<10} {:<10}".format("", "Max Fitness", "Mean Fitness", "Pop Size", "MP", "GD"))
+            # Possibly migrate individuals between islands
+            migration_event(islands, migration_pressures)
 
-        # Evolve each island and check for extinction in reverse order
-        for name, island in islands.items():
-            if island is not None and len(island) > 0:
-                pop_size = len(islands[name])
+            # Output formatting
+            print("\n{:<10} {:<15} {:<15} {:<10} {:<10} {:<10}".format("", "Max Fitness", "Mean Fitness", "Pop Size", "MP", "GD"))
 
-                scores[name] = evaluate(env, island)
-                islands[name], scores[name] = evolve(island, nr_children, scores[name], pop_size, tournament_size)
+            # Evolve each island and check for extinction in reverse order
+            for name, island in islands.items():
+                if island is not None and len(island) > 0:
+                    pop_size = len(islands[name])
 
-                # calculate max and mean fitnesses
-                max_fitness = np.array(scores[name]).max()
-                mean_fitness = np.array(scores[name]).mean()
+                    scores[name] = evaluate(env, island)
+                    islands[name], scores[name] = evolve(env, island, nr_children, scores[name], pop_size, tournament_size, mutate_rate)
 
-                # save fitnesses and calculate stagnation
-                if name not in max_fitnesses:
-                    max_fitnesses[name] = [max_fitness]
-                    mean_fitnesses[name] = [mean_fitness]
-                    stagnation[name] = (0, 0)
-                else:
-                    max_fitnesses[name].append(max_fitness)
-                    mean_fitnesses[name].append(mean_fitness)
-                
-                    # Check for stagnation in max fitness
+                    # calculate max and mean fitnesses
+                    max_fitness = np.array(scores[name]).max()
+                    mean_fitness = np.array(scores[name]).mean()
+
+                    # save fitnesses and calculate stagnation
+                    if name not in max_fitnesses:
+                        max_fitnesses[name] = [max_fitness]
+                        mean_fitnesses[name] = [mean_fitness]
+                        stagnation[name] = (0, 0)
+                    else:
+                        max_fitnesses[name].append(max_fitness)
+                        mean_fitnesses[name].append(mean_fitness)
+
+                        # Check for stagnation in max fitness
+                        max_stag, mean_stag = stagnation[name]
+                        if len(max_fitnesses[name]) > 1 and max_fitnesses[name][-2] >= max_fitnesses[name][-1]:
+                            max_stag += 1
+                        else:
+                            max_stag = 0  # Reset if there is no stagnation
+
+                        # Check for stagnation in mean fitness
+                        if len(mean_fitnesses[name]) > 1 and mean_fitnesses[name][-2] >= mean_fitnesses[name][-1]:
+                            mean_stag += 1
+                        else:
+                            mean_stag = 0  # Reset if there is no stagnation
+
+                        # Update the stagnation dictionary with the new stagnation values
+                        stagnation[name] = (max_stag, mean_stag)
+
+
+                    diversity = calculate_genotypic_diversity(island)
+
                     max_stag, mean_stag = stagnation[name]
-                    if len(max_fitnesses[name]) > 1 and max_fitnesses[name][-2] >= max_fitnesses[name][-1]:
-                        max_stag += 1
-                    else:
-                        max_stag = 0  # Reset if there is no stagnation
-                    
-                    # Check for stagnation in mean fitness
-                    if len(mean_fitnesses[name]) > 1 and mean_fitnesses[name][-2] >= mean_fitnesses[name][-1]:
-                        mean_stag += 1
-                    else:
-                        mean_stag = 0  # Reset if there is no stagnation
-                    
-                    # Update the stagnation dictionary with the new stagnation values
-                    stagnation[name] = (max_stag, mean_stag)
-                
-                
-                diversity = calculate_genotypic_diversity(island)
 
-                max_stag, mean_stag = stagnation[name]
+                    # Calculate the migration pressure
+                    deviation = abs(pop_size - (pop_size/3))
+                    pop_factor = deviation / total_pop_size
+                    stag_factor = stag_factor = (max_stag + mean_stag * 2) / generations
+                    diversity_factor = 1 - (diversity / 15)
 
-                # Calculate the migration pressure
-                deviation = abs(pop_size - (pop_size/3))
-                pop_factor = deviation / total_pop_size
-                stag_factor = stag_factor = (max_stag + mean_stag * 2) / generations
-                diversity_factor = 1 - (diversity / 15)
+                    migration_pressures[name] = base_migration_prob * (pop_weight * pop_factor + stag_weight * stag_factor + diversity_weight * diversity_factor)
 
-                migration_pressures[name] = base_migration_prob * (pop_weight * pop_factor + stag_weight * stag_factor + diversity_weight * diversity_factor)
 
-                
-                # Print statement with formatted max fitness and mean fitness including stagnation
-                print("{:<10} {:<15} {:<15} {:<10} {:<10.3f} {:<10.2f}".format(
-                    name, 
-                    f"{max_fitness:.2f} ({max_stag})", 
-                    f"{mean_fitness:.2f} ({mean_stag})", 
-                    pop_size,
-                    migration_pressures[name],
-                    diversity
-                ))
-                
-                # track the max of the population
-                if current_gen_max is None or max_fitness > current_gen_max:
-                    current_gen_max = max_fitness
+                    # Print statement with formatted max fitness and mean fitness including stagnation
+                    print("{:<10} {:<15} {:<15} {:<10} {:<10.3f} {:<10.2f}".format(
+                        name, 
+                        f"{max_fitness:.2f} ({max_stag})", 
+                        f"{mean_fitness:.2f} ({mean_stag})", 
+                        pop_size,
+                        migration_pressures[name],
+                        diversity
+                    ))
 
+                    # track the max of the population
+                    if current_gen_max is None or max_fitness > current_gen_max:
+                        current_gen_max = max_fitness
+
+                else:
+                    # Skip extinct islands in stats
+                    continue
+
+            print()
+
+            # Generation counter and time calculation
+            generation += 1
+            end = time.time()
+            gen_time = end - start
+            generation_times.append(gen_time)
+            mean_generation_time = np.mean(generation_times)
+
+            # Max fitness and stagnation
+            # Check for stagnation in population-wide max fitness
+            if prev_pop_max is not None and current_gen_max == prev_pop_max:
+                population_stagnation += 1
             else:
-                # Skip extinct islands in stats
-                continue
+                population_stagnation = 0
+                population_max = current_gen_max
 
-        print()
-        
-        # Generation counter and time calculation
-        generation += 1
-        end = time.time()
-        gen_time = end - start
-        generation_times.append(gen_time)
-        mean_generation_time = np.mean(generation_times)
-
-        # Max fitness and stagnation
-        # Check for stagnation in population-wide max fitness
-        if prev_pop_max is not None and current_gen_max == prev_pop_max:
-            population_stagnation += 1
-        else:
-            population_stagnation = 0
-            population_max = current_gen_max
-
-        print(f'Best Overall Fitness: {population_max:.2f} ({population_stagnation})\n')
-        print(f'Current generation time: {gen_time:.2f} seconds (Mean: {mean_generation_time:.2f} seconds)\n')
+            print(f'Best Overall Fitness: {population_max:.2f} ({population_stagnation})\n')
+            print(f'Current generation time: {gen_time:.2f} seconds (Mean: {mean_generation_time:.2f} seconds)\n')
 
 
 
-#Select the best individual
-if len(pop) == len(scores):
-    winner = pop[np.argmax(np.array(scores))]
-    winner_score = (np.array(scores)).max()
-    print(f'Best individual after evolution scores {winner_score}')
-else:
-    print('Error: pop and scores not same size')
+    #Select the best individual
+    if len(pop) == len(scores):
+        winner = pop[np.argmax(np.array(scores))]
+        winner_score = (np.array(scores)).max()
+        print(f'Best individual after evolution scores {winner_score}')
+    else:
+        print('Error: pop and scores not same size')
 
-#Here we have to add all kinds of graph stuff for the report
+    #Here we have to add all kinds of graph stuff for the report
