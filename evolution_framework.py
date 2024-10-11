@@ -74,29 +74,33 @@ def evaluate(env, pop):
 
 #TODO
 #Selects a parent for reproduction
-def parent_selection(pop, scores):
+def parent_selection(pop, scores, tournament_size=3):
     
-    #select a parent via a certain mechanism
+    # Randomly select individuals for the tournament
+    tournament_indices = np.random.choice(len(pop), tournament_size, replace=False)
+    tournament_individuals = [pop[i] for i in tournament_indices]
+    tournament_scores = [scores[i] for i in tournament_indices]
     
-    #random winner for testing framework
-    index = random.randint(0, len(pop)-1) 
-    winner = pop[index] 
+    # Find the individual with the highest fitness in the tournament
+    winner_index = np.argmax(tournament_scores)
+    winner = tournament_individuals[winner_index]
     
-    #return one parent
     return winner
 
-#TODO
-#Takes two parents and creates one child
-def reproduce(parent1, parent2):
+def reproduce(parent1, parent2, gene_mutation_rate=0.01):
     # Generate a random mask with True/False values for crossover
     mask = np.random.rand(len(parent1)) < 0.5
 
     # Create a child by picking genes from each parent based on the mask
     child = np.where(mask, parent1, parent2)
 
+    # Apply mutation: Randomly alter genes based on mutation rate
+    mutation_mask = np.random.rand(len(child)) < gene_mutation_rate
+    child[mutation_mask] = np.random.rand(np.sum(mutation_mask))
+
     return child
 
-def create_offspring(nr_children, pop, scores):
+def create_offspring(nr_children, pop, scores, tournament_size):
     # Ensure scores are in numpy array format for calculation
     scores = np.array(scores)
     
@@ -110,8 +114,8 @@ def create_offspring(nr_children, pop, scores):
     # Generate offspring based on fitness probabilities
     for _ in range(total_children):
         # Select two parents based on the fitness probabilities
-        parent1 = pop[np.random.choice(len(pop), p=fitness_probabilities)]
-        parent2 = pop[np.random.choice(len(pop), p=fitness_probabilities)]
+        parent1 = parent_selection(pop, scores, tournament_size)
+        parent2 = parent_selection(pop, scores, tournament_size)
         
         # Recombine parents to create a child
         child = reproduce(parent1, parent2)
@@ -130,7 +134,6 @@ def mutate(pop, mutate_rate):
             individual += mutation
     return pop
 
-#TODO
 #Takes a larger population a selects the best of pop_size from it
 def select_individuals(pop, scores, pop_size):
     pop = np.array(pop)
@@ -239,10 +242,10 @@ def migration_event(islands, migration_pressures):
 
 
 #evolves a population for a number of generations 
-def evolve(pop, nr_children, scores, pop_size):
+def evolve(pop, nr_children, scores, pop_size, tournament_size):
     
     #create children
-    offspring = create_offspring(nr_children, pop, scores)
+    offspring = create_offspring(nr_children, pop, scores, tournament_size)
     
     #Mutate resulting offspring
     mutated_offspring = mutate(offspring, mutate_rate)
@@ -274,6 +277,7 @@ enemygroup = [5, 7] #which enemies to train on (if you want quick, do less)
 
 mutate_rate = 0.4 #amount of mutations
 nr_children = 2 #amount off offspring to generate
+tournament_size = 3
 
 #island params
 nr_islands = 10 #the number of islands
@@ -349,7 +353,7 @@ for i in range(n_runs):
                 pop_size = len(islands[name])
 
                 scores[name] = evaluate(env, island)
-                islands[name], scores[name] = evolve(island, nr_children, scores[name], pop_size)
+                islands[name], scores[name] = evolve(island, nr_children, scores[name], pop_size, tournament_size)
 
                 # calculate max and mean fitnesses
                 max_fitness = np.array(scores[name]).max()
