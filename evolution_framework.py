@@ -72,10 +72,13 @@ def evaluate(env, pop):
     
     return results
 
-#TODO
 #Selects a parent for reproduction
 def parent_selection(pop, scores, tournament_size=3):
     
+    #Pick a random parent if we have population of 1 or 2
+    if pop < tournament_size:
+        tournament_size=1
+
     # Randomly select individuals for the tournament
     tournament_indices = np.random.choice(len(pop), tournament_size, replace=False)
     tournament_individuals = [pop[i] for i in tournament_indices]
@@ -124,7 +127,6 @@ def create_offspring(nr_children, pop, scores, tournament_size):
     # Return the population of offspring
     return offspring
 
-#TODO
 #Takes a population and mutates it with a mutation rate
 def mutate(pop, mutate_rate):
     for individual in pop:
@@ -169,8 +171,6 @@ def select_individuals_tournament(pop, scores, pop_size, tournament_size=3):
         new_scores[i] = scores[best_idx]
     
     return new_pop, new_scores
-
-
 
 #Exchange individuals in between islands
 def migration_event(islands, migration_pressures):
@@ -458,8 +458,6 @@ if __name__ == "__main__":
 
             print(f'Best Overall Fitness: {population_max:.2f} ({population_stagnation})\n')
             print(f'Current generation time: {gen_time:.2f} seconds (Mean: {mean_generation_time:.2f} seconds)\n')
-
-
 
     #Select the best individual
     if len(pop) == len(scores):
