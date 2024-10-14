@@ -150,6 +150,28 @@ def select_individuals(pop, scores, pop_size):
     #Return the new population with corresponding new scores
     return new_pop, new_scores
 
+def select_individuals_tournament(pop, scores, pop_size, tournament_size=3):
+    pop = np.array(pop)
+    scores = np.array(scores)
+
+    new_pop = np.zeros((pop_size, pop.shape[1]))
+    new_scores = np.zeros(pop_size)
+
+    for i in range(pop_size):
+        #Randomly choose tournament_size individuals
+        selected_indices = np.random.choice(np.arange(len(pop)), size=tournament_size, replace=False)
+        
+        #Find the index of the best individual in the tournament
+        best_idx = selected_indices[np.argmax(scores[selected_indices])]
+        
+        #Add the best individual to the new population
+        new_pop[i] = pop[best_idx]
+        new_scores[i] = scores[best_idx]
+    
+    return new_pop, new_scores
+
+
+
 #Exchange individuals in between islands
 def migration_event(islands, migration_pressures):
     for name, island in islands.items():
@@ -258,7 +280,7 @@ def evolve(env, pop, nr_children, scores, pop_size, tournament_size, mutate_rate
     combined_scores = np.concatenate((scores, offspring_scores))
 
     #Select individuals for next generation
-    pop, scores = select_individuals(combined_pop, combined_scores, pop_size)
+    pop, scores = select_individuals_tournament(combined_pop, combined_scores, pop_size)
     
     #returns the evolved population and new scores
     return pop, scores
