@@ -76,7 +76,7 @@ def evaluate(env, pop):
 def parent_selection(pop, scores, tournament_size=3):
     
     #Pick a random parent if we have population of 1 or 2
-    if pop < tournament_size:
+    if len(pop) < tournament_size:
         tournament_size=1
 
     # Randomly select individuals for the tournament
