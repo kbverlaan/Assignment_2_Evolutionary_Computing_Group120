@@ -1,3 +1,4 @@
+import os
 import random
 import numpy as np
 import time
@@ -285,8 +286,43 @@ def evolve(env, pop, nr_children, scores, pop_size, tournament_size, mutate_rate
     #returns the evolved population and new scores
     return pop, scores
     
+def logislands(scores, log_file, j):
+    all_scores = []
+    for score_list in scores.values():
+        if score_list is not None:  # Ensure the island has some scores
+            all_scores.extend(score_list)
+
+    mean_fitness = np.mean(all_scores)
+    max_fitness = np.max(all_scores)
+
+    with open(log_file, "a") as log:
+        log.write(f"{j},{mean_fitness},{max_fitness}\n")
+
+def findwinner(islands, scores):
+    best_score = None
+    winner = None
+
+    for island_name, score_list in scores.items():
+        if score_list is None:
+            continue  # Skip islands with no population or scores
+
+        # Get the corresponding population for the current island
+        island_population = islands[island_name]
+
+        if island_population is None or len(island_population) == 0:
+            continue
+
+        # Check each individual's score to find the best one
+        for index, score in enumerate(score_list):
+            if best_score is None or score > best_score:  # Find the best score
+                best_score = score
+                winner = island_population[index]  # Get the individual corresponding to the best score
+
+    return winner
+
+
 if __name__ == "__main__":
-    n_runs = 1 #number of runs (should be 10 for report)
+    n_runs = 10 #number of runs (should be 10 for report)
     generations = 250 #number of generations
     total_pop_size = 100 #population size
 
@@ -314,8 +350,17 @@ if __name__ == "__main__":
 
     generation_times = [] #record the generation times
 
+    subfolder = "EA1_EG2_logs"
+    if not os.path.exists(subfolder):
+        os.makedirs(subfolder)
+
     #Running the experiment for the amount of runs with one group
-    for i in range(n_runs):
+    for k in range(n_runs):
+
+        print(f"-----------RUN {k}-----------")
+        
+        log_file = os.path.join(subfolder, "Island_evolution_run" + str(k) + ".txt")
+
         ### INITIALIZATION
         #create the environment to play the game
         env = create_env(experiment_name, enemygroup, n_hidden)
@@ -327,6 +372,12 @@ if __name__ == "__main__":
 
         #Evaluate each individual
         scores = evaluate(env, pop)
+
+        mean_fitness = scores.mean()
+        max_fitness = scores.max()
+
+        with open(log_file, "w") as log:
+            log.write(f"{0},{mean_fitness},{max_fitness}\n")
 
         #ISLAND METHOD EVOLUTION
         #Divide population into nr_islands equal parts
@@ -441,6 +492,9 @@ if __name__ == "__main__":
 
             print()
 
+            # Logging
+            logislands(scores, log_file, generation)
+
             # Generation counter and time calculation
             generation += 1
             end = time.time()
@@ -459,12 +513,11 @@ if __name__ == "__main__":
             print(f'Best Overall Fitness: {population_max:.2f} ({population_stagnation})\n')
             print(f'Current generation time: {gen_time:.2f} seconds (Mean: {mean_generation_time:.2f} seconds)\n')
 
-    #Select the best individual
-    if len(pop) == len(scores):
-        winner = pop[np.argmax(np.array(scores))]
-        winner_score = (np.array(scores)).max()
-        print(f'Best individual after evolution scores {winner_score}')
-    else:
-        print('Error: pop and scores not same size')
+        winner = findwinner(islands, scores)
 
-    #Here we have to add all kinds of graph stuff for the report
+        subfolderw = "EA1_EG2_winners"
+        if not os.path.exists(subfolderw):
+            os.makedirs(subfolderw)
+        best_individual_file = os.path.join(subfolderw, "EA1_EG2_winner_run" + str(k) + ".txt")
+        with open(best_individual_file, "w") as best_file:
+            best_file.write(f"{winner.tolist()}")
