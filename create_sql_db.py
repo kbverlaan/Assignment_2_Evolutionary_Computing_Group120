@@ -19,30 +19,29 @@ def create_connection(db_file):
             conn.close()
 
 def create_table_1(cursor):
-    cursor.execute('''DROP TABLE IF EXIST Alg_ea2;
-                    CREATE TABLE Alg_ea2,
-                    (id INTEGER PRIMARY KEY,
-                    enemy_group INT,
-                    run INT,
-                    generation INT,
-                    population INT,
-                    fitness DECIMAL(10,4));'''
-                   )
+    cursor.execute('''DROP TABLE IF EXISTS Alg_ea2;''')
+    cursor.execute('''CREATE TABLE Alg_ea2 (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        enemy_group INT,
+                        run INT,
+                        generation INT,
+                        population INT,
+                        fitness DECIMAL(10,4));''')
 
 def create_table_2(cursor):
-    cursor.execute('''DROP TABLE IF EXIST Alg_evol_framework;
-                    CREATE TABLE Alg_evol_framework,
-                    (id INTEGER PRIMARY KEY,
-                    enemy_group INT,
-                    run INT,
-                    generation INT,
-                    population INT,
-                    fitness DECIMAL(10,4));'''
-                   )
-def save_output(num_to_exchange, island_name, target_name):
-#     save_output((enemy_group, run, generation, population, fitness))
-    cursor.execute("INSERT INTO Alg_ea2 (enemy_group, run, generation, population, fitness) VALUES (?,?,?,?,?)",
-                                (enemy_group, run, generation, population, fitness))
+    cursor.execute('''DROP TABLE IF EXISTS Alg_evol_framework;''')
+    cursor.execute('''CREATE TABLE Alg_evol_framework (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        enemy_group INT,
+                        run INT,
+                        generation INT,
+                        population INT,
+                        fitness DECIMAL(10,4));''')
+
+def save_output(cursor, enemy_group, run, generation, population, fitness):
+    cursor.execute("INSERT INTO Alg_ea2 (enemy_group, run, generation, population, fitness) VALUES (?, ?, ?, ?, ?)",
+                   (enemy_group, run, generation, population, fitness))
+
 
 def create_and_init_db():
     create_connection(r"db_file.db")
