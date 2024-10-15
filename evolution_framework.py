@@ -256,16 +256,6 @@ def migration_event(islands, migration_pressures):
                 if len(islands[name]) == 0:
                     islands[name] = None  # Set to None if the island becomes empty
 
-
-                # Save output
-                if undiscovered:
-                    save_output(num_to_exchange, name, target_name)
-                else:
-                    save_output(num_to_exchange, name, target_name)
-
-
-
-
                 # Print output
                 if undiscovered:
                     print(f'- Island Discovered: {num_to_exchange} individuals from {name} discovered {target_name}.')
@@ -297,6 +287,7 @@ def evolve(env, pop, nr_children, scores, pop_size, tournament_size, mutate_rate
     
 if __name__ == "__main__":
     database = "db_file.db"
+    create_and_init_db()
     n_runs = 1 #number of runs (should be 10 for report)
     generations = 250 #number of generations
     total_pop_size = 100 #population size
@@ -373,6 +364,9 @@ if __name__ == "__main__":
             current_gen_max = None
             prev_pop_max = population_max
 
+            save_output(generation, enemy_group, population, num_to_exchange, mp, gd,fitness, genotype)
+
+
             print(f'--------------- GENERATION {generation} ---------------\n')
 
             # Possibly migrate individuals between islands
@@ -392,6 +386,12 @@ if __name__ == "__main__":
                     # calculate max and mean fitnesses
                     max_fitness = np.array(scores[name]).max()
                     mean_fitness = np.array(scores[name]).mean()
+
+                    # save output to the database
+                    with sqlite3.connect('db_file.db') as conn:
+                                    cursor = conn.cursor()
+                                    save_output(cursor, enemygroup, i, generation, pop_size, max_fitness)  # Save max fitness
+
 
                     # save fitnesses and calculate stagnation
                     if name not in max_fitnesses:
