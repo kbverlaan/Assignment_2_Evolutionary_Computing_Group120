@@ -261,8 +261,7 @@ def migration_event(islands, migration_pressures):
                 if undiscovered:
                     save_output(num_to_exchange, name, target_name)
                 else:
-                    save_output(f'- Migration: {num_to_exchange} individuals migrated from {name} to {target_name}.')
-
+                    save_output(num_to_exchange, name, target_name)
 
 
 
