@@ -7,6 +7,7 @@ import sys
 from controller import player_controller
 from evoman.environment import Environment
 from scipy.spatial.distance import pdist, squareform
+from create_sql_db import *
 
 #Initiliazes a random population
 def initialize_pop(pop_size, nr_weights, min_weight, max_weight):
@@ -256,6 +257,16 @@ def migration_event(islands, migration_pressures):
                     islands[name] = None  # Set to None if the island becomes empty
 
 
+                # Save output
+                if undiscovered:
+                    save_output(num_to_exchange, name, target_name)
+                else:
+                    save_output(f'- Migration: {num_to_exchange} individuals migrated from {name} to {target_name}.')
+
+
+
+
+
                 # Print output
                 if undiscovered:
                     print(f'- Island Discovered: {num_to_exchange} individuals from {name} discovered {target_name}.')
@@ -286,6 +297,7 @@ def evolve(env, pop, nr_children, scores, pop_size, tournament_size, mutate_rate
     return pop, scores
     
 if __name__ == "__main__":
+    database = "db_file.db"
     n_runs = 1 #number of runs (should be 10 for report)
     generations = 250 #number of generations
     total_pop_size = 100 #population size
@@ -468,3 +480,13 @@ if __name__ == "__main__":
         print('Error: pop and scores not same size')
 
     #Here we have to add all kinds of graph stuff for the report
+
+
+   def rm_db(database):
+       if os.path.exists(database):
+           try:
+               os.remove(database)
+           except Exception as e:
+               print(f"Error removing: {e}")
+       else:
+           print(f"{database} does not exist in the current directory.")
