@@ -52,6 +52,40 @@ def calculate_genotypic_diversity(island):
 
     return mean_distance
 
+def calculate_genotypic_diversity_combined(islands):
+    # Filter out empty or None islands and ensure correct dimensions
+    numeric_populations = [
+        np.array(island, dtype=np.float64) for island in islands.values() 
+        if island is not None and len(island) > 0
+    ]
+
+    # Check if the numeric populations are non-empty and have consistent dimensions
+    if len(numeric_populations) == 0:
+        return 0  # No individuals to calculate diversity
+    
+    # Ensure all islands have consistent dimensions
+    # Here we check if all populations have the same shape along axis 1
+    individual_length = numeric_populations[0].shape[1]  # Expected genome size (e.g., 265)
+    for population in numeric_populations:
+        if population.shape[1] != individual_length:
+            raise ValueError(f"Population has inconsistent genome length. Expected {individual_length}, found {population.shape[1]}.")
+
+    # Flatten the list of populations into one combined population
+    combined_population = np.vstack(numeric_populations)
+    
+    # Check if the combined population has at least 2 individuals
+    if len(combined_population) < 2:
+        return 0  # Not enough individuals to calculate diversity
+    
+    # Calculate pairwise distances between all individuals in the combined population
+    pairwise_distances = pdist(combined_population, metric='euclidean')
+    
+    # Calculate the mean pairwise distance
+    mean_distance = np.mean(pairwise_distances)
+    
+    # Return the genotypic diversity of the combined population
+    return mean_distance
+
 #evaluates each individual in pop by playing the game
 def evaluate(env, pop):
 
@@ -294,7 +328,7 @@ def evolve(env, pop, nr_children, scores, pop_size, tournament_size, mutate_rate
     #returns the evolved population and new scores
     return pop, scores
     
-def logislands(scores, log_file, j):
+def logislands(scores, log_file, j, islands):
     all_scores = []
     for score_list in scores.values():
         if score_list is not None:  # Ensure the island has some scores
@@ -302,9 +336,10 @@ def logislands(scores, log_file, j):
 
     mean_fitness = np.mean(all_scores)
     max_fitness = np.max(all_scores)
+    diversity = calculate_genotypic_diversity_combined(islands)
 
     with open(log_file, "a") as log:
-        log.write(f"{j},{mean_fitness},{max_fitness}\n")
+        log.write(f"{j},{mean_fitness},{max_fitness},{diversity}\n")
 
 def findwinner(islands, scores):
     best_score = None
@@ -330,9 +365,9 @@ def findwinner(islands, scores):
 
 
 if __name__ == "__main__":
-    n_runs = 10 #number of runs (should be 10 for report)
-    generations = 250 #number of generations
-    total_pop_size = 100 #population size
+    n_runs = 3 #number of runs (should be 10 for report)
+    generations = 5 #number of generations
+    total_pop_size = 20 #population size
 
     n_hidden = 10 #number of hidden nodes in NN
     inputs = 265 #amount of weights
@@ -383,9 +418,10 @@ if __name__ == "__main__":
 
         mean_fitness = scores.mean()
         max_fitness = scores.max()
+        diversity = calculate_genotypic_diversity(pop)
 
         with open(log_file, "w") as log:
-            log.write(f"{0},{mean_fitness},{max_fitness}\n")
+            log.write(f"{0},{mean_fitness},{max_fitness},{diversity}\n")
 
         #ISLAND METHOD EVOLUTION
         #Divide population into nr_islands equal parts
@@ -501,7 +537,7 @@ if __name__ == "__main__":
             print()
 
             # Logging
-            logislands(scores, log_file, generation)
+            logislands(scores, log_file, generation, islands)
 
             # Generation counter and time calculation
             generation += 1

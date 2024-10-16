@@ -1,11 +1,11 @@
 import numpy as np
 import time
-from evolution_framework import create_env, evaluate, evolve, initialize_pop
+from evolution_framework import create_env, evaluate, evolve, initialize_pop, calculate_genotypic_diversity
 import os
     
-n_runs = 10 #number of runs (should be 10 for report)
-generations = 250 #number of generations
-total_pop_size = 100 #population size
+n_runs = 3 #number of runs (should be 10 for report)
+generations = 5 #number of generations
+total_pop_size = 5 #population size
 
 n_hidden = 10 #number of hidden nodes in NN
 inputs = 265 #amount of weights
@@ -23,7 +23,7 @@ generation_times = [] #record the generation times
 max_stagnation = 0 #record the number of generations without max_fitness improvement
 mean_stagnation = 0 #record the number of generation without mean_fitness improvement
 
-subfolder = "EA2_EG2_logs"
+subfolder = "EA2_EG1_logs"
 if not os.path.exists(subfolder):
     os.makedirs(subfolder)
 
@@ -46,11 +46,14 @@ for i in range(n_runs):
     #Evaluate each individual
     scores = evaluate(env, pop)
 
+    #calculate the genotypic diversity
+    diversity = calculate_genotypic_diversity(pop)
+
     max_fitness = np.array(scores).max()
     mean_fitness = np.array(scores).mean()
 
     # Output formatting
-    print("\n{:<20} {:<20} {:<20} {:<20} {:<20}".format("Generation", "Max Fitness", "Mean Fitness", "Stagnation of max", "Stagnation of mean"))
+    print("\n{:<20} {:<20} {:<20} {:<20} {:<20} {:<20}".format("Generation", "Max Fitness", "Mean Fitness", "Stagnation of max", "Stagnation of mean", "Diversity"))
 
 #----EVOLUTION-----
     
@@ -61,16 +64,17 @@ for i in range(n_runs):
         prev_pop_max = max_fitness
 
         #Outputting the generation info
-        print("{:<20} {:<20} {:<20} {:<20} {:<20}".format(
+        print("{:<20} {:<20} {:<20} {:<20} {:<20} {:20}".format(
                     f"{j}",
                     f"{max_fitness:.2f}", 
                     f"{mean_fitness:.2f}",
                     f"{max_stagnation}",
-                    f"{mean_stagnation}"
+                    f"{mean_stagnation}",
+                    f"{diversity}"
                 ))
 
         with open(log_file, "a") as log:
-            log.write(f"{j},{mean_fitness},{max_fitness}\n")
+            log.write(f"{j},{mean_fitness},{max_fitness},{diversity}\n")
 
         # Evolve the population
         pop, scores = evolve(env, pop, nr_children, scores, total_pop_size, tournament_size, mutate_rate)
@@ -81,6 +85,8 @@ for i in range(n_runs):
         # Calculate the new max and mean fitness
         max_fitness = np.array(scores).max()
         mean_fitness = np.array(scores).mean()
+        #calucalte the new genotypic diversity
+        diversity = calculate_genotypic_diversity(pop)
 
         if old_max == max_fitness:
             max_stagnation += 1
@@ -102,10 +108,10 @@ for i in range(n_runs):
         print(f'Best individual after evolution scores {winner_score}')
 
         # Save the best individual to a file after all generations
-        subfolderw = "EA2_EG2_winners"
+        subfolderw = "EA2_EG1_winners"
         if not os.path.exists(subfolderw):
             os.makedirs(subfolderw)
-        best_individual_file = os.path.join(subfolderw, "EA2_EG2_winner_run" + str(i) + ".txt")
+        best_individual_file = os.path.join(subfolderw, "EA2_EG1_winner_run" + str(i) + ".txt")
         with open(best_individual_file, "w") as best_file:
                 best_file.write(f"{winner.tolist()}")
     else:

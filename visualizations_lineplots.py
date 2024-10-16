@@ -10,9 +10,9 @@ def log_to_dataframe(log_file):
     with open(log_file, 'r') as file:
         for line in file:
             parts = line.strip().split(",")
-            if len(parts) == 3:
-                generation, mean_fitness, max_fitness = parts
-                data.append({'Generation': int(generation), 'Mean Fitness': float(mean_fitness), 'Max Fitness': float(max_fitness)})
+            if len(parts) == 4:
+                generation, mean_fitness, max_fitness, diversity = parts
+                data.append({'Generation': int(generation), 'Mean Fitness': float(mean_fitness), 'Max Fitness': float(max_fitness), 'Diversity': float(diversity)})
     
     return pd.DataFrame(data)
 
@@ -58,6 +58,31 @@ def plot_fitness(maxEG1, meanEG1, maxEG2, meanEG2, filename, experiment):
     plt.savefig(filename, format='png', dpi=300)
     plt.close()
 
+def plot_diversity(EA1EG1, EA1EG2, EA2EG1, EA2EG2, filename):
+    df1 = pd.read_csv(EA1EG1)
+    df2 = pd.read_csv(EA1EG2)
+    df3 = pd.read_csv(EA2EG1)
+    df4 = pd.read_csv(EA2EG2)
+
+    # Calculate the mean diversity across 10 runs for each generation
+    for df, col_name in zip([df1, df2, df3, df4], ['Mean Diversity', 'Mean Diversity', 'Mean Diversity', 'Mean Diversity']):
+        df[col_name] = df.loc[:, 'Run 0':'Run 9'].mean(axis=1)
+
+    # Plotting
+    plt.figure(figsize=(10, 6))
+    plt.plot(df1['Generation'], df1['Mean Diversity'], label='Diversity EA1 EG1', color='blue', marker='o')
+    plt.plot(df2['Generation'], df2['Mean Diversity'], label='Diversity EA1 EG2', color='green', marker='x')
+    plt.plot(df3['Generation'], df3['Mean Diversity'], label='Diversity EA2 EG1', color='red', marker='o')
+    plt.plot(df4['Generation'], df4['Mean Diversity'], label='Diversity EA2 EG2', color='yellow', marker='x')
+
+    plt.title(f'Diversity Across Generations in 10 runs')
+    plt.xlabel('Generation')
+    plt.ylabel('Average Diversity from 10 Runs')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(filename, format='png', dpi=300)
+    plt.close()
+    
 # General function to save combined dataframes to CSV
 def save_combined_dataframes(folders, num_runs, fitness_type, output_prefix):
     for folder in folders:
@@ -66,7 +91,7 @@ def save_combined_dataframes(folders, num_runs, fitness_type, output_prefix):
         df.to_csv(output_file, index=False)
 
 # Parameters
-num_runs = 10
+num_runs = 3
 subfolder = 'plots'
 if not os.path.exists(subfolder):
     os.makedirs(subfolder)
@@ -76,6 +101,7 @@ folders = ['EA1_EG1_logs', 'EA1_EG2_logs', 'EA2_EG1_logs', 'EA2_EG2_logs']
 # Combine and save all mean and max fitness data
 save_combined_dataframes(folders, num_runs, 'Mean Fitness', 'mean_runs')
 save_combined_dataframes(folders, num_runs, 'Max Fitness', 'max_runs')
+save_combined_dataframes(folders, num_runs, 'Diversity', 'diversity')
 
 # Get CSV file paths for plotting
 csv_files = {
@@ -86,9 +112,14 @@ csv_files = {
     'EA1_EG1_max': 'EA1_EG1_logs/combined_max_runs_EA1_EG1_logs.csv',
     'EA1_EG2_max': 'EA1_EG2_logs/combined_max_runs_EA1_EG2_logs.csv',
     'EA2_EG1_max': 'EA2_EG1_logs/combined_max_runs_EA2_EG1_logs.csv',
-    'EA2_EG2_max': 'EA2_EG2_logs/combined_max_runs_EA2_EG2_logs.csv'
+    'EA2_EG2_max': 'EA2_EG2_logs/combined_max_runs_EA2_EG2_logs.csv',
+    'EA1_EG1_diversity': 'EA1_EG1_logs/combined_diversity_EA1_EG1_logs.csv',
+    'EA1_EG2_diversity': 'EA1_EG2_logs/combined_diversity_EA1_EG2_logs.csv',
+    'EA2_EG1_diversity': 'EA2_EG1_logs/combined_diversity_EA2_EG1_logs.csv',
+    'EA2_EG2_diversity': 'EA2_EG2_logs/combined_diversity_EA2_EG2_logs.csv'
 }
 
 # Plotting
 plot_fitness(csv_files['EA1_EG1_max'], csv_files['EA1_EG1_mean'], csv_files['EA1_EG2_max'], csv_files['EA1_EG2_mean'], f'{subfolder}/EA1.png', 'EA1')
 plot_fitness(csv_files['EA2_EG1_max'], csv_files['EA2_EG1_mean'], csv_files['EA2_EG2_max'], csv_files['EA2_EG2_mean'], f'{subfolder}/EA2.png', 'EA2')
+plot_diversity(csv_files['EA1_EG1_diversity'], csv_files['EA1_EG2_diversity'], csv_files['EA2_EG1_diversity'], csv_files['EA2_EG2_diversity'], f'{subfolder}/diversity.png')
