@@ -153,21 +153,29 @@ def select_individuals(pop, scores, pop_size):
     #Return the new population with corresponding new scores
     return new_pop, new_scores
 
+#Selects pop_size individuals from larger population with elitism
 def select_individuals_tournament(pop, scores, pop_size, tournament_size=3):
     pop = np.array(pop)
     scores = np.array(scores)
 
+    # Initialize the new population arrays
     new_pop = np.zeros((pop_size, pop.shape[1]))
     new_scores = np.zeros(pop_size)
 
-    for i in range(pop_size):
-        #Randomly choose tournament_size individuals
+    # Elitism: Add the best individual directly to the new population
+    best_idx = np.argmax(scores)
+    new_pop[0] = pop[best_idx]
+    new_scores[0] = scores[best_idx]
+
+    # Start from index 1 since the best individual is already added
+    for i in range(1, pop_size):
+        # Randomly choose tournament_size individuals
         selected_indices = np.random.choice(np.arange(len(pop)), size=tournament_size, replace=False)
         
-        #Find the index of the best individual in the tournament
+        # Find the index of the best individual in the tournament
         best_idx = selected_indices[np.argmax(scores[selected_indices])]
         
-        #Add the best individual to the new population
+        # Add the best individual from the tournament to the new population
         new_pop[i] = pop[best_idx]
         new_scores[i] = scores[best_idx]
     
