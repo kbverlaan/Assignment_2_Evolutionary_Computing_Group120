@@ -8,6 +8,7 @@ import sys
 from controller import player_controller
 from evoman.environment import Environment
 from scipy.spatial.distance import pdist, squareform
+from create_sql_db import *
 
 #Initiliazes a random population
 def initialize_pop(pop_size, nr_weights, min_weight, max_weight):
@@ -298,7 +299,6 @@ def migration_event(islands, migration_pressures):
                 if len(islands[name]) == 0:
                     islands[name] = None  # Set to None if the island becomes empty
 
-
                 # Print output
                 if undiscovered:
                     print(f'- Island Discovered: {num_to_exchange} individuals from {name} discovered {target_name}.')
@@ -365,10 +365,6 @@ def findwinner(islands, scores):
 
 
 if __name__ == "__main__":
-    n_runs = 3 #number of runs (should be 10 for report)
-    generations = 5 #number of generations
-    total_pop_size = 20 #population size
-
     n_hidden = 10 #number of hidden nodes in NN
     inputs = 265 #amount of weights
     min_weight = -1 #minimum weight for the NN
@@ -457,6 +453,9 @@ if __name__ == "__main__":
             current_gen_max = None
             prev_pop_max = population_max
 
+            save_output(generation, enemy_group, population, num_to_exchange, mp, gd,fitness, genotype)
+
+
             print(f'--------------- GENERATION {generation} ---------------\n')
 
             # Possibly migrate individuals between islands
@@ -476,6 +475,12 @@ if __name__ == "__main__":
                     # calculate max and mean fitnesses
                     max_fitness = np.array(scores[name]).max()
                     mean_fitness = np.array(scores[name]).mean()
+
+                    # save output to the database
+                    with sqlite3.connect('db_file.db') as conn:
+                                    cursor = conn.cursor()
+                                    save_output(cursor, enemygroup, i, generation, pop_size, max_fitness)  # Save max fitness
+
 
                     # save fitnesses and calculate stagnation
                     if name not in max_fitnesses:
@@ -558,10 +563,3 @@ if __name__ == "__main__":
             print(f'Current generation time: {gen_time:.2f} seconds (Mean: {mean_generation_time:.2f} seconds)\n')
 
         winner = findwinner(islands, scores)
-
-        subfolderw = "EA1_EG2_winners"
-        if not os.path.exists(subfolderw):
-            os.makedirs(subfolderw)
-        best_individual_file = os.path.join(subfolderw, "EA1_EG2_winner_run" + str(k) + ".txt")
-        with open(best_individual_file, "w") as best_file:
-            best_file.write(f"{winner.tolist()}")
