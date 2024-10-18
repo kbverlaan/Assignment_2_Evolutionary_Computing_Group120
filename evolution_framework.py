@@ -553,3 +553,10 @@ if __name__ == "__main__":
                 print(f'Current generation time: {gen_time:.2f} seconds (Mean: {mean_generation_time:.2f} seconds)\n')
 
             winner = findwinner(islands, scores)
+
+            subfolderw = subfolder = f"EA1_EG{g+1}_winners"
+            if not os.path.exists(subfolderw):
+                os.makedirs(subfolderw)
+            best_individual_file = os.path.join(subfolderw, f"EA1_EG{g+1}_winner_run" + str(k) + ".txt")
+            with open(best_individual_file, "w") as best_file:
+                best_file.write(f"{winner.tolist()}")
