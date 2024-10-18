@@ -1,3 +1,4 @@
+import os
 import random
 import numpy as np
 import time
@@ -50,6 +51,40 @@ def calculate_genotypic_diversity(island):
     # Calculate the mean pairwise distance
     mean_distance = np.mean(pairwise_distances)
 
+    return mean_distance
+
+def calculate_genotypic_diversity_combined(islands):
+    # Filter out empty or None islands and ensure correct dimensions
+    numeric_populations = [
+        np.array(island, dtype=np.float64) for island in islands.values() 
+        if island is not None and len(island) > 0
+    ]
+
+    # Check if the numeric populations are non-empty and have consistent dimensions
+    if len(numeric_populations) == 0:
+        return 0  # No individuals to calculate diversity
+    
+    # Ensure all islands have consistent dimensions
+    # Here we check if all populations have the same shape along axis 1
+    individual_length = numeric_populations[0].shape[1]  # Expected genome size (e.g., 265)
+    for population in numeric_populations:
+        if population.shape[1] != individual_length:
+            raise ValueError(f"Population has inconsistent genome length. Expected {individual_length}, found {population.shape[1]}.")
+
+    # Flatten the list of populations into one combined population
+    combined_population = np.vstack(numeric_populations)
+    
+    # Check if the combined population has at least 2 individuals
+    if len(combined_population) < 2:
+        return 0  # Not enough individuals to calculate diversity
+    
+    # Calculate pairwise distances between all individuals in the combined population
+    pairwise_distances = pdist(combined_population, metric='euclidean')
+    
+    # Calculate the mean pairwise distance
+    mean_distance = np.mean(pairwise_distances)
+    
+    # Return the genotypic diversity of the combined population
     return mean_distance
 
 #evaluates each individual in pop by playing the game
@@ -153,21 +188,29 @@ def select_individuals(pop, scores, pop_size):
     #Return the new population with corresponding new scores
     return new_pop, new_scores
 
+#Selects pop_size individuals from larger population with elitism
 def select_individuals_tournament(pop, scores, pop_size, tournament_size=3):
     pop = np.array(pop)
     scores = np.array(scores)
 
+    # Initialize the new population arrays
     new_pop = np.zeros((pop_size, pop.shape[1]))
     new_scores = np.zeros(pop_size)
 
-    for i in range(pop_size):
-        #Randomly choose tournament_size individuals
+    # Elitism: Add the best individual directly to the new population
+    best_idx = np.argmax(scores)
+    new_pop[0] = pop[best_idx]
+    new_scores[0] = scores[best_idx]
+
+    # Start from index 1 since the best individual is already added
+    for i in range(1, pop_size):
+        # Randomly choose tournament_size individuals
         selected_indices = np.random.choice(np.arange(len(pop)), size=tournament_size, replace=False)
         
-        #Find the index of the best individual in the tournament
+        # Find the index of the best individual in the tournament
         best_idx = selected_indices[np.argmax(scores[selected_indices])]
         
-        #Add the best individual to the new population
+        # Add the best individual from the tournament to the new population
         new_pop[i] = pop[best_idx]
         new_scores[i] = scores[best_idx]
     
@@ -285,13 +328,43 @@ def evolve(env, pop, nr_children, scores, pop_size, tournament_size, mutate_rate
     #returns the evolved population and new scores
     return pop, scores
     
-if __name__ == "__main__":
-    database = "db_file.db"
-    create_and_init_db()
-    n_runs = 1 #number of runs (should be 10 for report)
-    generations = 250 #number of generations
-    total_pop_size = 100 #population size
+def logislands(scores, log_file, j, islands):
+    all_scores = []
+    for score_list in scores.values():
+        if score_list is not None:  # Ensure the island has some scores
+            all_scores.extend(score_list)
 
+    mean_fitness = np.mean(all_scores)
+    max_fitness = np.max(all_scores)
+    diversity = calculate_genotypic_diversity_combined(islands)
+
+    with open(log_file, "a") as log:
+        log.write(f"{j},{mean_fitness},{max_fitness},{diversity}\n")
+
+def findwinner(islands, scores):
+    best_score = None
+    winner = None
+
+    for island_name, score_list in scores.items():
+        if score_list is None:
+            continue  # Skip islands with no population or scores
+
+        # Get the corresponding population for the current island
+        island_population = islands[island_name]
+
+        if island_population is None or len(island_population) == 0:
+            continue
+
+        # Check each individual's score to find the best one
+        for index, score in enumerate(score_list):
+            if best_score is None or score > best_score:  # Find the best score
+                best_score = score
+                winner = island_population[index]  # Get the individual corresponding to the best score
+
+    return winner
+
+
+if __name__ == "__main__":
     n_hidden = 10 #number of hidden nodes in NN
     inputs = 265 #amount of weights
     min_weight = -1 #minimum weight for the NN
@@ -316,8 +389,17 @@ if __name__ == "__main__":
 
     generation_times = [] #record the generation times
 
+    subfolder = "EA1_EG2_logs"
+    if not os.path.exists(subfolder):
+        os.makedirs(subfolder)
+
     #Running the experiment for the amount of runs with one group
-    for i in range(n_runs):
+    for k in range(n_runs):
+
+        print(f"-----------RUN {k}-----------")
+        
+        log_file = os.path.join(subfolder, "Island_evolution_run" + str(k) + ".txt")
+
         ### INITIALIZATION
         #create the environment to play the game
         env = create_env(experiment_name, enemygroup, n_hidden)
@@ -329,6 +411,13 @@ if __name__ == "__main__":
 
         #Evaluate each individual
         scores = evaluate(env, pop)
+
+        mean_fitness = scores.mean()
+        max_fitness = scores.max()
+        diversity = calculate_genotypic_diversity(pop)
+
+        with open(log_file, "w") as log:
+            log.write(f"{0},{mean_fitness},{max_fitness},{diversity}\n")
 
         #ISLAND METHOD EVOLUTION
         #Divide population into nr_islands equal parts
@@ -452,6 +541,9 @@ if __name__ == "__main__":
 
             print()
 
+            # Logging
+            logislands(scores, log_file, generation, islands)
+
             # Generation counter and time calculation
             generation += 1
             end = time.time()
@@ -470,22 +562,4 @@ if __name__ == "__main__":
             print(f'Best Overall Fitness: {population_max:.2f} ({population_stagnation})\n')
             print(f'Current generation time: {gen_time:.2f} seconds (Mean: {mean_generation_time:.2f} seconds)\n')
 
-    #Select the best individual
-    if len(pop) == len(scores):
-        winner = pop[np.argmax(np.array(scores))]
-        winner_score = (np.array(scores)).max()
-        print(f'Best individual after evolution scores {winner_score}')
-    else:
-        print('Error: pop and scores not same size')
-
-    #Here we have to add all kinds of graph stuff for the report
-
-
-   def rm_db(database):
-       if os.path.exists(database):
-           try:
-               os.remove(database)
-           except Exception as e:
-               print(f"Error removing: {e}")
-       else:
-           print(f"{database} does not exist in the current directory.")
+        winner = findwinner(islands, scores)
