@@ -4,7 +4,7 @@ from evolution_framework import create_env, evaluate, evolve, initialize_pop, ca
 import os
     
 n_runs = 10 #number of runs (should be 10 for report)
-generations = 150 #number of generations
+generations = 100 #number of generations
 total_pop_size = 150 #population size
 
 n_hidden = 10 #number of hidden nodes in NN

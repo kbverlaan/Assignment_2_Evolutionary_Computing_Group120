@@ -350,7 +350,7 @@ def findwinner(islands, scores):
 
 if __name__ == "__main__":
     n_runs = 10 #number of runs (should be 10 for report)
-    generations = 150 #number of generations
+    generations = 100 #number of generations
     total_pop_size = 150 #population size
 
     n_hidden = 10 #number of hidden nodes in NN
