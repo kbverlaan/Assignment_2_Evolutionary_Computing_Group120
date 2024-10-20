@@ -60,27 +60,28 @@ def plot_fitness(maxEG1, meanEG1, maxEG2, meanEG2, filename, experiment):
     plt.figure(figsize=(10, 6))
     
     # Plot Max fitness EG1 with standard deviation
-    plt.plot(df1['Generation'], df1['Mean'], label='Max fitness EG1', color='blue', marker='o')
+    plt.plot(df1['Generation'], df1['Mean'], label='Max fitness EA1', color='blue', linestyle='-')
     plt.fill_between(df1['Generation'], df1['Mean'] - df1['Std'], df1['Mean'] + df1['Std'], color='blue', alpha=0.2)
     
     # Plot Mean fitness EG1 with standard deviation
-    plt.plot(df2['Generation'], df2['Mean'], label='Mean fitness EG1', color='blue', marker='x')
+    plt.plot(df2['Generation'], df2['Mean'], label='Mean fitness EA1', color='blue', linestyle='--')
     plt.fill_between(df2['Generation'], df2['Mean'] - df2['Std'], df2['Mean'] + df2['Std'], color='blue', alpha=0.2)
     
     # Plot Max fitness EG2 with standard deviation
-    plt.plot(df3['Generation'], df3['Mean'], label='Max fitness EG2', color='red', marker='o')
+    plt.plot(df3['Generation'], df3['Mean'], label='Max fitness EA2', color='red', linestyle='-')
     plt.fill_between(df3['Generation'], df3['Mean'] - df3['Std'], df3['Mean'] + df3['Std'], color='red', alpha=0.2)
     
     # Plot Mean fitness EG2 with standard deviation
-    plt.plot(df4['Generation'], df4['Mean'], label='Mean fitness EG2', color='red', marker='x')
+    plt.plot(df4['Generation'], df4['Mean'], label='Mean fitness EA2', color='red', linestyle='--')
     plt.fill_between(df4['Generation'], df4['Mean'] - df4['Std'], df4['Mean'] + df4['Std'], color='red', alpha=0.2)
     
-    plt.title(f'Fitness Across Generations in 10 runs for {experiment}')
-    plt.xlabel('Generation')
-    plt.ylabel('Fitness')
+    plt.title(f'Fitness Across Generations in 10 runs for {experiment}', fontsize=14)
+    plt.xlabel('Generation', fontsize=14)
+    plt.ylabel('Average Fitness', fontsize=14)
     plt.legend()
     plt.grid(True)
     plt.savefig(filename, format='png', dpi=300)
+    plt.legend(fontsize=12, loc='upper left')  # Adjust size and location
     plt.close()
 
 # Makes a plot for diversity with standard deviation
@@ -94,91 +95,27 @@ def plot_diversity(EA1EG1, EA1EG2, EA2EG1, EA2EG2, filename):
     plt.figure(figsize=(10, 6))
 
     # Plot Diversity EA1 EG1 with standard deviation
-    plt.plot(df1['Generation'], df1['Mean'], label='Diversity EA1 EG1', color='blue', marker='o')
-    plt.fill_between(df1['Generation'], df1['Mean'] - df1['Std'], df1['Mean'] + df1['Std'], color='blue', alpha=0.2)
+    plt.plot(df1['Generation'], df1['Mean'], label='Diversity EA1 EG1', color='blue', linestyle='-')
+    #plt.fill_between(df1['Generation'], df1['Mean'] - df1['Std'], df1['Mean'] + df1['Std'], color='blue', alpha=0.2)
     
     # Plot Diversity EA1 EG2 with standard deviation
-    plt.plot(df2['Generation'], df2['Mean'], label='Diversity EA1 EG2', color='green', marker='x')
-    plt.fill_between(df2['Generation'], df2['Mean'] - df2['Std'], df2['Mean'] + df2['Std'], color='green', alpha=0.2)
+    plt.plot(df2['Generation'], df2['Mean'], label='Diversity EA1 EG2', color='blue', linestyle='--')
+    #plt.fill_between(df2['Generation'], df2['Mean'] - df2['Std'], df2['Mean'] + df2['Std'], color='blue', alpha=0.2)
     
     # Plot Diversity EA2 EG1 with standard deviation
-    plt.plot(df3['Generation'], df3['Mean'], label='Diversity EA2 EG1', color='red', marker='o')
-    plt.fill_between(df3['Generation'], df3['Mean'] - df3['Std'], df3['Mean'] + df3['Std'], color='red', alpha=0.2)
+    plt.plot(df3['Generation'], df3['Mean'], label='Diversity EA2 EG1', color='red', linestyle='-')
+    #plt.fill_between(df3['Generation'], df3['Mean'] - df3['Std'], df3['Mean'] + df3['Std'], color='red', alpha=0.2)
     
     # Plot Diversity EA2 EG2 with standard deviation
-    plt.plot(df4['Generation'], df4['Mean'], label='Diversity EA2 EG2', color='yellow', marker='x')
-    plt.fill_between(df4['Generation'], df4['Mean'] - df4['Std'], df4['Mean'] + df4['Std'], color='yellow', alpha=0.2)
+    plt.plot(df4['Generation'], df4['Mean'], label='Diversity EA2 EG2', color='red', linestyle='--')
+    #plt.fill_between(df4['Generation'], df4['Mean'] - df4['Std'], df4['Mean'] + df4['Std'], color='red', alpha=0.2)
 
-    plt.title(f'Diversity Across Generations in 10 runs')
-    plt.xlabel('Generation')
-    plt.ylabel('Diversity')
+    plt.title(f'Diversity Across Generations in 10 runs', fontsize=14)
+    plt.xlabel('Generation', fontsize=14)
+    plt.ylabel('Average Diversity', fontsize=14)
     plt.legend()
     plt.grid(True)
     plt.savefig(filename, format='png', dpi=300)
-    plt.close()
-
-import matplotlib.pyplot as plt
-
-# Plotting comparison between EA1 and EA2 for each enemy group
-def plot_comparison_by_enemy(maxEG1_EA1, meanEG1_EA1, maxEG1_EA2, meanEG1_EA2, 
-                             maxEG2_EA1, meanEG2_EA1, maxEG2_EA2, meanEG2_EA2, 
-                             filename_prefix):
-    # Plot for enemy group 1 (EG1)
-    plt.figure(figsize=(10, 6))
-    
-    # Max fitness comparison for EG1
-    plt.plot(maxEG1_EA1['Generation'], maxEG1_EA1['Mean'], label='Max fitness EA1 EG1', color='blue', marker='o')
-    plt.fill_between(maxEG1_EA1['Generation'], maxEG1_EA1['Mean'] - maxEG1_EA1['Std'], 
-                     maxEG1_EA1['Mean'] + maxEG1_EA1['Std'], color='blue', alpha=0.2)
-    
-    plt.plot(maxEG1_EA2['Generation'], maxEG1_EA2['Mean'], label='Max fitness EA2 EG1', color='red', marker='o')
-    plt.fill_between(maxEG1_EA2['Generation'], maxEG1_EA2['Mean'] - maxEG1_EA2['Std'], 
-                     maxEG1_EA2['Mean'] + maxEG1_EA2['Std'], color='red', alpha=0.2)
-    
-    # Mean fitness comparison for EG1
-    plt.plot(meanEG1_EA1['Generation'], meanEG1_EA1['Mean'], label='Mean fitness EA1 EG1', color='blue', marker='x')
-    plt.fill_between(meanEG1_EA1['Generation'], meanEG1_EA1['Mean'] - meanEG1_EA1['Std'], 
-                     meanEG1_EA1['Mean'] + meanEG1_EA1['Std'], color='blue', alpha=0.2)
-    
-    plt.plot(meanEG1_EA2['Generation'], meanEG1_EA2['Mean'], label='Mean fitness EA2 EG1', color='red', marker='x')
-    plt.fill_between(meanEG1_EA2['Generation'], meanEG1_EA2['Mean'] - meanEG1_EA2['Std'], 
-                     meanEG1_EA2['Mean'] + meanEG1_EA2['Std'], color='red', alpha=0.2)
-    
-    plt.title('Fitness Across Generations for EG1 (EA1 vs EA2)')
-    plt.xlabel('Generation')
-    plt.ylabel('Fitness')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(f'{filename_prefix}_EG1.png', format='png', dpi=300)
-    plt.close()
-
-    # Plot for enemy group 2 (EG2)
-    plt.figure(figsize=(10, 6))
-    
-    # Max fitness comparison for EG2
-    plt.plot(maxEG2_EA1['Generation'], maxEG2_EA1['Mean'], label='Max fitness EA1 EG2', color='blue', marker='o')
-    plt.fill_between(maxEG2_EA1['Generation'], maxEG2_EA1['Mean'] - maxEG2_EA1['Std'], 
-                     maxEG2_EA1['Mean'] + maxEG2_EA1['Std'], color='blue', alpha=0.2)
-    
-    plt.plot(maxEG2_EA2['Generation'], maxEG2_EA2['Mean'], label='Max fitness EA2 EG2', color='red', marker='o')
-    plt.fill_between(maxEG2_EA2['Generation'], maxEG2_EA2['Mean'] - maxEG2_EA2['Std'], 
-                     maxEG2_EA2['Mean'] + maxEG2_EA2['Std'], color='red', alpha=0.2)
-    
-    # Mean fitness comparison for EG2
-    plt.plot(meanEG2_EA1['Generation'], meanEG2_EA1['Mean'], label='Mean fitness EA1 EG2', color='blue', marker='x')
-    plt.fill_between(meanEG2_EA1['Generation'], meanEG2_EA1['Mean'] - meanEG2_EA1['Std'], 
-                     meanEG2_EA1['Mean'] + meanEG2_EA1['Std'], color='blue', alpha=0.2)
-    
-    plt.plot(meanEG2_EA2['Generation'], meanEG2_EA2['Mean'], label='Mean fitness EA2 EG2', color='red', marker='x')
-    plt.fill_between(meanEG2_EA2['Generation'], meanEG2_EA2['Mean'] - meanEG2_EA2['Std'], 
-                     meanEG2_EA2['Mean'] + meanEG2_EA2['Std'], color='red', alpha=0.2)
-    
-    plt.title('Fitness Across Generations for EG2 (EA1 vs EA2)')
-    plt.xlabel('Generation')
-    plt.ylabel('Fitness')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(f'{filename_prefix}_EG2.png', format='png', dpi=300)
     plt.close()
 
 # General function to save combined dataframes to CSV
@@ -218,6 +155,6 @@ csv_files = {
 }
 
 # Plotting
-plot_fitness(csv_files['EA1_EG1_max'], csv_files['EA1_EG1_mean'], csv_files['EA1_EG2_max'], csv_files['EA1_EG2_mean'], f'{subfolder}/EA1.png', 'EA1')
-plot_fitness(csv_files['EA2_EG1_max'], csv_files['EA2_EG1_mean'], csv_files['EA2_EG2_max'], csv_files['EA2_EG2_mean'], f'{subfolder}/EA2.png', 'EA2')
+plot_fitness(csv_files['EA1_EG1_max'], csv_files['EA1_EG1_mean'], csv_files['EA2_EG1_max'], csv_files['EA2_EG1_mean'], f'{subfolder}/EG1.png', 'EG1')
+plot_fitness(csv_files['EA1_EG2_max'], csv_files['EA1_EG2_mean'], csv_files['EA2_EG2_max'], csv_files['EA2_EG2_mean'], f'{subfolder}/EG2.png', 'EG2')
 plot_diversity(csv_files['EA1_EG1_diversity'], csv_files['EA1_EG2_diversity'], csv_files['EA2_EG1_diversity'], csv_files['EA2_EG2_diversity'], f'{subfolder}/diversity.png')

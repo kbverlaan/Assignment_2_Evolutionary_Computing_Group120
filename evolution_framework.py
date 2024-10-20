@@ -400,9 +400,6 @@ if __name__ == "__main__":
             # split into the inhabited islands
             split_populations = np.array_split(pop, inhabited_islands)
 
-            #Evaluate each individual
-            scores = evaluate(env, pop)
-
             mean_fitness = scores.mean()
             max_fitness = scores.max()
             diversity = calculate_genotypic_diversity(pop)
@@ -424,7 +421,6 @@ if __name__ == "__main__":
                 islands[f'Island {island_name}'] = split_populations[i]
 
             scores = {name: evaluate(env, pop) if pop is not None else None for name, pop in islands.items()}
-
 
             # track max and mean fitnesses
             max_fitnesses = {}
