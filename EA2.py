@@ -4,7 +4,7 @@ from evolution_framework import create_env, evaluate, evolve, initialize_pop, ca
 import os
     
 n_runs = 10 #number of runs (should be 10 for report)
-generations = 100 #number of generations
+generations = 50 #number of generations
 total_pop_size = 150 #population size
 
 n_hidden = 10 #number of hidden nodes in NN
@@ -111,10 +111,10 @@ for g, group in enumerate(egroups):
             print(f'Best individual after evolution scores {winner_score}')
 
             # Save the best individual to a file after all generations
-            subfolderw = "EA2_EG1_winners"
+            subfolderw = f"EA2_EG{g+1}_winners"
             if not os.path.exists(subfolderw):
                 os.makedirs(subfolderw)
-            best_individual_file = os.path.join(subfolderw, "EA2_EG1_winner_run" + str(i) + ".txt")
+            best_individual_file = os.path.join(subfolderw, f"EA2_EG{g+1}_winner_run" + str(i) + ".txt")
             with open(best_individual_file, "w") as best_file:
                     best_file.write(f"{winner.tolist()}")
         else:

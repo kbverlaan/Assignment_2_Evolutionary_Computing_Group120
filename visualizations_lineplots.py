@@ -2,8 +2,11 @@ import pandas as pd
 import os
 import matplotlib.pyplot as plt
 
-#Takes the txt file with logged mean and max fitness and creates a dataframe
+# Takes the txt file with logged mean and max fitness and creates a dataframe
 def log_to_dataframe(log_file):
+    # Define the column names explicitly
+    columns = ['Generation', 'Mean Fitness', 'Max Fitness', 'Diversity']
+    
     data = []
     
     # Open the file
@@ -14,75 +17,170 @@ def log_to_dataframe(log_file):
                 generation, mean_fitness, max_fitness, diversity = parts
                 data.append({'Generation': int(generation), 'Mean Fitness': float(mean_fitness), 'Max Fitness': float(max_fitness), 'Diversity': float(diversity)})
     
-    return pd.DataFrame(data)
+    return pd.DataFrame(data, columns=columns)
 
-# General function to combine fitness runs into a dataframe
 def combine_runs_to_dataframe(log_folder, num_runs, fitness_type):
-    combined_df = None
+    all_dfs = []
 
     for run_num in range(num_runs):
         log_file = os.path.join(log_folder, f'Island_evolution_run{run_num}.txt')
         df = log_to_dataframe(log_file)
         
-        if combined_df is None:
-            combined_df = df[['Generation', fitness_type]].rename(columns={fitness_type: f'Run {run_num}'})
-        else:
-            join_column = df[fitness_type].rename(f'Run {run_num}')
-            combined_df = pd.concat([combined_df, join_column], axis=1)
+        # Append only the relevant fitness type and Generation
+        all_dfs.append(df[['Generation', fitness_type]])
 
-    return combined_df
+    # Concatenate all the data along rows, ensuring there's only one Generation column
+    combined_df = pd.concat(all_dfs, ignore_index=True)
+    
+    # Ensure that 'Generation' is not duplicated across columns
+    combined_df = combined_df.drop_duplicates(subset=['Generation', fitness_type])
+    
+    # Calculate mean and standard deviation grouped by Generation
+    mean_df = combined_df.groupby('Generation').mean()
+    std_df = combined_df.groupby('Generation').std()
+    
+    # Create a new DataFrame with Generation, mean, and std columns
+    result_df = pd.DataFrame({
+        'Generation': mean_df.index,
+        'Mean': mean_df[fitness_type],
+        'Std': std_df[fitness_type]
+    }).reset_index(drop=True)
+    
+    return result_df
 
-# Makes a plot for both mean and max fitness
+# Makes a plot for both mean and max fitness including standard deviation
+# Makes a plot for both mean and max fitness including standard deviation
 def plot_fitness(maxEG1, meanEG1, maxEG2, meanEG2, filename, experiment):
     df1 = pd.read_csv(maxEG1)
     df2 = pd.read_csv(meanEG1)
     df3 = pd.read_csv(maxEG2)
     df4 = pd.read_csv(meanEG2)
     
-    # Calculate the mean fitness across 10 runs for each generation
-    for df, col_name in zip([df1, df2, df3, df4], ['Mean Max Fitness', 'Mean Mean Fitness', 'Mean Max Fitness', 'Mean Mean Fitness']):
-        df[col_name] = df.loc[:, 'Run 0':'Run 9'].mean(axis=1)
-    
     # Plotting
     plt.figure(figsize=(10, 6))
-    plt.plot(df1['Generation'], df1['Mean Max Fitness'], label='Max fitness EG1', color='blue', marker='o')
-    plt.plot(df2['Generation'], df2['Mean Mean Fitness'], label='Mean fitness EG1', color='green', marker='x')
-    plt.plot(df3['Generation'], df3['Mean Max Fitness'], label='Max fitness EG2', color='red', marker='o')
-    plt.plot(df4['Generation'], df4['Mean Mean Fitness'], label='Mean fitness EG2', color='yellow', marker='x')
-
+    
+    # Plot Max fitness EG1 with standard deviation
+    plt.plot(df1['Generation'], df1['Mean'], label='Max fitness EG1', color='blue', marker='o')
+    plt.fill_between(df1['Generation'], df1['Mean'] - df1['Std'], df1['Mean'] + df1['Std'], color='blue', alpha=0.2)
+    
+    # Plot Mean fitness EG1 with standard deviation
+    plt.plot(df2['Generation'], df2['Mean'], label='Mean fitness EG1', color='blue', marker='x')
+    plt.fill_between(df2['Generation'], df2['Mean'] - df2['Std'], df2['Mean'] + df2['Std'], color='blue', alpha=0.2)
+    
+    # Plot Max fitness EG2 with standard deviation
+    plt.plot(df3['Generation'], df3['Mean'], label='Max fitness EG2', color='red', marker='o')
+    plt.fill_between(df3['Generation'], df3['Mean'] - df3['Std'], df3['Mean'] + df3['Std'], color='red', alpha=0.2)
+    
+    # Plot Mean fitness EG2 with standard deviation
+    plt.plot(df4['Generation'], df4['Mean'], label='Mean fitness EG2', color='red', marker='x')
+    plt.fill_between(df4['Generation'], df4['Mean'] - df4['Std'], df4['Mean'] + df4['Std'], color='red', alpha=0.2)
+    
     plt.title(f'Fitness Across Generations in 10 runs for {experiment}')
     plt.xlabel('Generation')
-    plt.ylabel('Average Fitness from 10 Runs')
+    plt.ylabel('Fitness')
     plt.legend()
     plt.grid(True)
     plt.savefig(filename, format='png', dpi=300)
     plt.close()
 
+# Makes a plot for diversity with standard deviation
 def plot_diversity(EA1EG1, EA1EG2, EA2EG1, EA2EG2, filename):
     df1 = pd.read_csv(EA1EG1)
     df2 = pd.read_csv(EA1EG2)
     df3 = pd.read_csv(EA2EG1)
     df4 = pd.read_csv(EA2EG2)
 
-    # Calculate the mean diversity across 10 runs for each generation
-    for df, col_name in zip([df1, df2, df3, df4], ['Mean Diversity', 'Mean Diversity', 'Mean Diversity', 'Mean Diversity']):
-        df[col_name] = df.loc[:, 'Run 0':'Run 9'].mean(axis=1)
-
     # Plotting
     plt.figure(figsize=(10, 6))
-    plt.plot(df1['Generation'], df1['Mean Diversity'], label='Diversity EA1 EG1', color='blue', marker='o')
-    plt.plot(df2['Generation'], df2['Mean Diversity'], label='Diversity EA1 EG2', color='green', marker='x')
-    plt.plot(df3['Generation'], df3['Mean Diversity'], label='Diversity EA2 EG1', color='red', marker='o')
-    plt.plot(df4['Generation'], df4['Mean Diversity'], label='Diversity EA2 EG2', color='yellow', marker='x')
+
+    # Plot Diversity EA1 EG1 with standard deviation
+    plt.plot(df1['Generation'], df1['Mean'], label='Diversity EA1 EG1', color='blue', marker='o')
+    plt.fill_between(df1['Generation'], df1['Mean'] - df1['Std'], df1['Mean'] + df1['Std'], color='blue', alpha=0.2)
+    
+    # Plot Diversity EA1 EG2 with standard deviation
+    plt.plot(df2['Generation'], df2['Mean'], label='Diversity EA1 EG2', color='green', marker='x')
+    plt.fill_between(df2['Generation'], df2['Mean'] - df2['Std'], df2['Mean'] + df2['Std'], color='green', alpha=0.2)
+    
+    # Plot Diversity EA2 EG1 with standard deviation
+    plt.plot(df3['Generation'], df3['Mean'], label='Diversity EA2 EG1', color='red', marker='o')
+    plt.fill_between(df3['Generation'], df3['Mean'] - df3['Std'], df3['Mean'] + df3['Std'], color='red', alpha=0.2)
+    
+    # Plot Diversity EA2 EG2 with standard deviation
+    plt.plot(df4['Generation'], df4['Mean'], label='Diversity EA2 EG2', color='yellow', marker='x')
+    plt.fill_between(df4['Generation'], df4['Mean'] - df4['Std'], df4['Mean'] + df4['Std'], color='yellow', alpha=0.2)
 
     plt.title(f'Diversity Across Generations in 10 runs')
     plt.xlabel('Generation')
-    plt.ylabel('Average Diversity from 10 Runs')
+    plt.ylabel('Diversity')
     plt.legend()
     plt.grid(True)
     plt.savefig(filename, format='png', dpi=300)
     plt.close()
+
+import matplotlib.pyplot as plt
+
+# Plotting comparison between EA1 and EA2 for each enemy group
+def plot_comparison_by_enemy(maxEG1_EA1, meanEG1_EA1, maxEG1_EA2, meanEG1_EA2, 
+                             maxEG2_EA1, meanEG2_EA1, maxEG2_EA2, meanEG2_EA2, 
+                             filename_prefix):
+    # Plot for enemy group 1 (EG1)
+    plt.figure(figsize=(10, 6))
     
+    # Max fitness comparison for EG1
+    plt.plot(maxEG1_EA1['Generation'], maxEG1_EA1['Mean'], label='Max fitness EA1 EG1', color='blue', marker='o')
+    plt.fill_between(maxEG1_EA1['Generation'], maxEG1_EA1['Mean'] - maxEG1_EA1['Std'], 
+                     maxEG1_EA1['Mean'] + maxEG1_EA1['Std'], color='blue', alpha=0.2)
+    
+    plt.plot(maxEG1_EA2['Generation'], maxEG1_EA2['Mean'], label='Max fitness EA2 EG1', color='red', marker='o')
+    plt.fill_between(maxEG1_EA2['Generation'], maxEG1_EA2['Mean'] - maxEG1_EA2['Std'], 
+                     maxEG1_EA2['Mean'] + maxEG1_EA2['Std'], color='red', alpha=0.2)
+    
+    # Mean fitness comparison for EG1
+    plt.plot(meanEG1_EA1['Generation'], meanEG1_EA1['Mean'], label='Mean fitness EA1 EG1', color='blue', marker='x')
+    plt.fill_between(meanEG1_EA1['Generation'], meanEG1_EA1['Mean'] - meanEG1_EA1['Std'], 
+                     meanEG1_EA1['Mean'] + meanEG1_EA1['Std'], color='blue', alpha=0.2)
+    
+    plt.plot(meanEG1_EA2['Generation'], meanEG1_EA2['Mean'], label='Mean fitness EA2 EG1', color='red', marker='x')
+    plt.fill_between(meanEG1_EA2['Generation'], meanEG1_EA2['Mean'] - meanEG1_EA2['Std'], 
+                     meanEG1_EA2['Mean'] + meanEG1_EA2['Std'], color='red', alpha=0.2)
+    
+    plt.title('Fitness Across Generations for EG1 (EA1 vs EA2)')
+    plt.xlabel('Generation')
+    plt.ylabel('Fitness')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f'{filename_prefix}_EG1.png', format='png', dpi=300)
+    plt.close()
+
+    # Plot for enemy group 2 (EG2)
+    plt.figure(figsize=(10, 6))
+    
+    # Max fitness comparison for EG2
+    plt.plot(maxEG2_EA1['Generation'], maxEG2_EA1['Mean'], label='Max fitness EA1 EG2', color='blue', marker='o')
+    plt.fill_between(maxEG2_EA1['Generation'], maxEG2_EA1['Mean'] - maxEG2_EA1['Std'], 
+                     maxEG2_EA1['Mean'] + maxEG2_EA1['Std'], color='blue', alpha=0.2)
+    
+    plt.plot(maxEG2_EA2['Generation'], maxEG2_EA2['Mean'], label='Max fitness EA2 EG2', color='red', marker='o')
+    plt.fill_between(maxEG2_EA2['Generation'], maxEG2_EA2['Mean'] - maxEG2_EA2['Std'], 
+                     maxEG2_EA2['Mean'] + maxEG2_EA2['Std'], color='red', alpha=0.2)
+    
+    # Mean fitness comparison for EG2
+    plt.plot(meanEG2_EA1['Generation'], meanEG2_EA1['Mean'], label='Mean fitness EA1 EG2', color='blue', marker='x')
+    plt.fill_between(meanEG2_EA1['Generation'], meanEG2_EA1['Mean'] - meanEG2_EA1['Std'], 
+                     meanEG2_EA1['Mean'] + meanEG2_EA1['Std'], color='blue', alpha=0.2)
+    
+    plt.plot(meanEG2_EA2['Generation'], meanEG2_EA2['Mean'], label='Mean fitness EA2 EG2', color='red', marker='x')
+    plt.fill_between(meanEG2_EA2['Generation'], meanEG2_EA2['Mean'] - meanEG2_EA2['Std'], 
+                     meanEG2_EA2['Mean'] + meanEG2_EA2['Std'], color='red', alpha=0.2)
+    
+    plt.title('Fitness Across Generations for EG2 (EA1 vs EA2)')
+    plt.xlabel('Generation')
+    plt.ylabel('Fitness')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f'{filename_prefix}_EG2.png', format='png', dpi=300)
+    plt.close()
+
 # General function to save combined dataframes to CSV
 def save_combined_dataframes(folders, num_runs, fitness_type, output_prefix):
     for folder in folders:
@@ -91,7 +189,7 @@ def save_combined_dataframes(folders, num_runs, fitness_type, output_prefix):
         df.to_csv(output_file, index=False)
 
 # Parameters
-num_runs = 3
+num_runs = 10
 subfolder = 'plots'
 if not os.path.exists(subfolder):
     os.makedirs(subfolder)

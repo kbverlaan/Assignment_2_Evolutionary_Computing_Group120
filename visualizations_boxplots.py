@@ -53,13 +53,27 @@ def get_gains_for_experiment(env, num_runs, experiment):
     return gains
       
 experiment_name = 'run_winners'
-enemygroup = [1, 2, 3, 4, 5, 6, 7, 8]
 num_runs=10
 
 #Initialize the Evoman environment
 env = Environment(
     experiment_name=experiment_name,
-    enemies=enemygroup,
+    enemies=[1, 5, 6],
+    multiplemode='yes',
+    playermode="ai",
+    player_controller=player_controller(_n_hidden=10),
+    enemymode="static",
+    level=2,
+    logs="off", 
+    savelogs="no", 
+    speed="fastest",
+    visuals=False
+    )
+
+#Initialize the Evoman environment
+env = Environment(
+    experiment_name=experiment_name,
+    enemies=[2, 5, 8],
     multiplemode='yes',
     playermode="ai",
     player_controller=player_controller(_n_hidden=10),
