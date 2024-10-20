@@ -35,13 +35,15 @@ def combine_runs_to_dataframe(log_folder, num_runs, fitness_type):
     # Ensure that 'Generation' is not duplicated across columns
     combined_df = combined_df.drop_duplicates(subset=['Generation', fitness_type])
     
-    # Calculate mean and standard deviation grouped by Generation
+    # Calculate mean and standard deviation grouped by Generation]
+    max_df = combined_df.groupby('Generation').max()
     mean_df = combined_df.groupby('Generation').mean()
     std_df = combined_df.groupby('Generation').std()
     
     # Create a new DataFrame with Generation, mean, and std columns
     result_df = pd.DataFrame({
         'Generation': mean_df.index,
+        'Max': max_df[fitness_type],
         'Mean': mean_df[fitness_type],
         'Std': std_df[fitness_type]
     }).reset_index(drop=True)

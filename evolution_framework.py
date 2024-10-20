@@ -14,6 +14,19 @@ def initialize_pop(pop_size, nr_weights, min_weight, max_weight):
     
     return pop
 
+def sort_population_by_fitness(pop, scores):
+    """ Sort the population and scores in descending order of fitness. """
+    scores = np.array(scores)
+    pop = np.array(pop)
+    
+    # Sort scores in descending order and reorder population accordingly
+    sorted_indices = np.argsort(scores)[::-1]
+    sorted_pop = pop[sorted_indices]
+    sorted_scores = scores[sorted_indices]
+
+    return sorted_pop, sorted_scores
+
+
 #Initiliazes the environment in which to play the game
 def create_env(experiment_name, enemygroup, n_hidden):
     if len(enemygroup) > 1:
@@ -93,13 +106,8 @@ def evaluate(env, pop):
     #evaluate each individuals
     for individual in pop:
         #play game for each enemy, results in array of fitness
-        scores = env.play(pcont=individual)
+        fitness, _, _, _ = env.play(pcont=individual)
 
-        fitness = 0
-        #add the fitness for each enemy
-        for score in scores:
-            fitness = fitness + score
-        
         #append result for each individual
         results = np.append(results, fitness)
     
@@ -123,25 +131,18 @@ def parent_selection(pop, scores, tournament_size=3):
     
     return winner
 
-def reproduce(parent1, parent2, gene_mutation_rate=0.01):
+def reproduce(parent1, parent2):
     # Generate a random mask with True/False values for crossover
     mask = np.random.rand(len(parent1)) < 0.5
 
     # Create a child by picking genes from each parent based on the mask
     child = np.where(mask, parent1, parent2)
 
-    # Apply mutation: Randomly alter genes based on mutation rate
-    mutation_mask = np.random.rand(len(child)) < gene_mutation_rate
-    child[mutation_mask] = np.random.rand(np.sum(mutation_mask))
-
     return child
 
 def create_offspring(nr_children, pop, scores, tournament_size):
     # Ensure scores are in numpy array format for calculation
     scores = np.array(scores)
-    
-    # Convert scores to probabilities (higher fitness gives a higher chance of selection)
-    fitness_probabilities = scores / scores.sum()
 
     # Create an empty list to store offspring
     offspring = []
@@ -225,7 +226,7 @@ def migration_event(islands, scores, migration_pressures):
             island = np.array(island)
             pop_size = len(island)
 
-            small_uninhabited_prob = 100  
+            small_uninhabited_prob = 10  
             possible_targets = {}
 
             for target_name, target_island in islands.items():
@@ -288,7 +289,10 @@ def migration_event(islands, scores, migration_pressures):
                     print(f'- Island Discovered: {num_to_exchange} individuals from {name} discovered {target_name}.')
                 else:
                     print(f'- Migration: {num_to_exchange} individuals migrated from {name} to {target_name}.')
-
+            
+             # Sort the source island after migration
+            if islands[name] is not None and scores[name] is not None:
+                islands[name], scores[name] = sort_population_by_fitness(islands[name], scores[name])
 
 #evolves a population for a number of generations 
 def evolve(env, pop, nr_children, scores, pop_size, tournament_size, mutate_rate):
@@ -305,6 +309,9 @@ def evolve(env, pop, nr_children, scores, pop_size, tournament_size, mutate_rate
     #Simply combine the old pop and offspring
     combined_pop = np.concatenate((pop, offspring))
     combined_scores = np.concatenate((scores, offspring_scores))
+
+    # Sort combined population and scores by fitness
+    combined_pop, combined_scores = sort_population_by_fitness(combined_pop, combined_scores)
 
     #Select individuals for next generation
     pop, scores = select_individuals_tournament(combined_pop, combined_scores, pop_size)
@@ -326,32 +333,35 @@ def logislands(scores, log_file, j, islands):
         log.write(f"{j},{mean_fitness},{max_fitness},{diversity}\n")
 
 def findwinner(islands, scores):
-    best_score = None
+    best_score = -np.inf  # Start with a very low score
     winner = None
 
     for island_name, score_list in scores.items():
-        if score_list is None:
+        if score_list is None or len(score_list) == 0:
             continue  # Skip islands with no population or scores
 
-        # Get the corresponding population for the current island
         island_population = islands[island_name]
 
         if island_population is None or len(island_population) == 0:
-            continue
+            continue  # Skip empty islands
 
-        # Check each individual's score to find the best one
-        for index, score in enumerate(score_list):
-            if best_score is None or score > best_score:  # Find the best score
-                best_score = score
-                winner = island_population[index]  # Get the individual corresponding to the best score
+        # Find the best individual in the current island
+        island_best_idx = np.argmax(score_list)
+        island_best_score = score_list[island_best_idx]
 
-    return winner
+        if island_best_score > best_score:
+            best_score = island_best_score
+            winner = island_population[island_best_idx]  # Update the winner with the best individual
+        
+        f, _, _, _ = env.play(pcont=winner)
+
+    return winner, f
 
 
 if __name__ == "__main__":
-    n_runs = 10 #number of runs (should be 10 for report)
-    generations = 50 #number of generations
-    total_pop_size = 150 #population size
+    n_runs = 1 #number of runs (should be 10 for report)
+    generations = 150 #number of generations
+    total_pop_size = 100 #population size
 
     n_hidden = 10 #number of hidden nodes in NN
     inputs = 265 #amount of weights
@@ -387,6 +397,7 @@ if __name__ == "__main__":
 
         #Running the experiment for the amount of runs with one group
         for k in range(n_runs):
+            k = k+10
             print(f"-----------RUN {k}-----------")
             
             log_file = os.path.join(subfolder, "Island_evolution_run" + str(k) + ".txt")
@@ -399,6 +410,8 @@ if __name__ == "__main__":
             pop = initialize_pop(total_pop_size, inputs, min_weight, max_weight)
             # split into the inhabited islands
             split_populations = np.array_split(pop, inhabited_islands)
+
+            scores = evaluate(env, pop)
 
             mean_fitness = scores.mean()
             max_fitness = scores.max()
@@ -548,11 +561,12 @@ if __name__ == "__main__":
                 print(f'Best Overall Fitness: {population_max:.2f} ({population_stagnation})\n')
                 print(f'Current generation time: {gen_time:.2f} seconds (Mean: {mean_generation_time:.2f} seconds)\n')
 
-            winner = findwinner(islands, scores)
+            winner, winner_fitness = findwinner(islands, scores)  # Get both the winner and their fitness
 
-            subfolderw = subfolder = f"EA1_EG{g+1}_winners"
+            # Now write only the winner's genome to the log file
+            subfolderw = f"EA1_EG{g+1}_winners"
             if not os.path.exists(subfolderw):
                 os.makedirs(subfolderw)
             best_individual_file = os.path.join(subfolderw, f"EA1_EG{g+1}_winner_run" + str(k) + ".txt")
             with open(best_individual_file, "w") as best_file:
-                best_file.write(f"{winner.tolist()}")
+                best_file.write(f"{winner.tolist()}\n")

@@ -3,24 +3,35 @@ from controller import player_controller
 from evoman.environment import Environment
 import os
 import matplotlib.pyplot as plt
+import ast
 
-#Loads an individual, plays against all 8 enemies and calculates gains
+# Loads an individual, plays against all 8 enemies and calculates gains
 def get_gains_from_file(env, subfolder, filename):
     
-    #Open the file and read the content
+    # Open the file and read the content
     filepath = os.path.join(subfolder, filename)
     with open(filepath, 'r') as file:
         data = file.read()
 
-    #Use eval() to convert the string to an array
-    solution = eval(data)
+    # Use ast.literal_eval() to safely convert the string to an array
+    try:
+        solution = ast.literal_eval(data)
+    except (SyntaxError, ValueError) as e:
+        print(f"Error loading genome from {filename}: {e}")
+        return None  # Return None if there's an error with loading the genome
+
+    # Convert to NumPy array
     solution = np.array(solution)
 
-    #Play the game with individual
+    # Play the game with individual
     scores = env.play(pcont=solution)
 
-    #Calculate gain
-    #gain = player_energy - enemy_energy
+    # If scores were not returned, handle the error
+    if scores is None or len(scores) < 3:
+        print(f"Error playing game with genome from {filename}")
+        return None
+
+    # Calculate gain: gain = player_energy - enemy_energy
     gain = scores[1] - scores[2]
 
     return gain
@@ -58,6 +69,7 @@ def get_gains_for_experiment(env, num_runs, experiment):
         #calculate gains for individual
         gains.append(get_gains_from_file(env, subfolder, filename))
     
+    print(gains)
     return gains
       
 experiment_name = 'run_winners'
@@ -105,5 +117,5 @@ if not os.path.exists(subfolder):
             os.makedirs(subfolder)
 
 #Create the boxplots
-create_boxplot(gains_EA1_EG1, gains_EA2_EG1, subfolder + '/Boxplot_EG1.png', 1)
-create_boxplot(gains_EA1_EG2, gains_EA2_EG2, subfolder + '/Boxplot_EG2.png', 2)
+create_boxplot(gains_EA1_EG1, gains_EA2_EG1, subfolder + '/boxplot_EG1.png', 1)
+create_boxplot(gains_EA1_EG2, gains_EA2_EG2, subfolder + '/boxplot_EG2.png', 2)
